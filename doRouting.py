@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
 '''
-  Purpose: Apply GXD secondary triage routing algorithm and evaluate.
+  Purpose: Apply a potential GXD secondary triage routing algorithm & evaluate.
 
-  Inputs:  Sample file of classified reference records
+  Inputs:  Sample file of GXD routed (classified) reference records.
+            See refSample.py for the fields of these records.
   
-  Outputs: a file Routing assignments, one line for each reference
-           a file of text matches (to required and/or ignored text matches)
-           a summary of Precision and Recall to stdout
+  Outputs: a file of Routing assignments, 1 line for each reference
+           a file of "details" for each routing assignment, e.g.,
+                what term matches there were for each reference (+ context)
+           a file of term matches across the whole corpus
+               Positive words: context & counts
+               Exclude words: counts
+           a summary of Precision and Recall
+
+           You pass filename base prefix, e.g., 'Try1' as a cmd line param
+           and the output files are named:
+               Try1Routings.txt
+               Try1Details.txt
+               Try1Matches.txt
+               Try1Summary.txt
 '''
 import sys
 import os
@@ -15,27 +27,25 @@ import argparse
 import unittest
 #import db
 import refSample as SampleLib
-from utilsLib import removeNonAscii
+from sklearnHelperLib import predictionType
+#from utilsLib import removeNonAscii
 #-----------------------------------
 
 sampleObjType = SampleLib.ClassifiedRefSample
 
-# for the Sample output file
-RECORDEND    = sampleObjType.getRecordEnd()
-FIELDSEP     = sampleObjType.getFieldSep()
 #-----------------------------------
 
 def getArgs():
 
     parser = argparse.ArgumentParser( \
-        description='Get test set for GXD 2ndary triage proto, write to stdout')
+        description='test routing algorithm for GXD 2ndary triage proto, read testSet from stdin')
 
-    parser.add_argument('inputFile', action='store',
-        help="input file name. 'test' to run automated tests")
+    parser.add_argument('baseName', action='store',
+        help="output base file name. 'test' to just run automated tests")
 
-    parser.add_argument('-l', '--limit', dest='nResults',
+    parser.add_argument('-l', '--limit', dest='nToDo',
         required=False, type=int, default=0, 		# 0 means ALL
-        help="limit results to n references. Default is no limit")
+        help="only process this many references. Default is no limit")
 
     parser.add_argument('--textlength', dest='maxTextLength',
         type=int, required=False, default=None,
@@ -78,137 +88,271 @@ def getArgs():
 #-----------------------------------
 
 args = getArgs()
-root, ext = os.path.splitext(args.inputFile)
-args.predictionOutput = "%sPreds.txt" % root
-args.matchesOutput    = "%sMatches.txt" % root
+args.routingsFilename = "%sRoutings.txt" % args.baseName
+args.detailsFilename  = "%sDetails.txt" % args.baseName
+args.matchesFilename  = "%sMatches.txt" % args.baseName
+args.summaryFilename  = "%sSummary.txt" % args.baseName
 
 #-----------------------------------
 class GXDrouter (object):
-    def __init__(self):
-        self.cat1Terms = ['embryo']
-        self.cat1Ignore= [
-            "embryonic lethal",
-            "embryonic science",
-            "embryonic death",
-            "manipulating the mouse embryo: a laboratory manual",
-            "Anat. Embryol.",
-            "embryonic chick",
-            "anat embryol",
-            "embryonic stem",
-            "embryogenesis",
-            "drosophila embryo",
-            "embryoid bodies",
-            "d'embryologie",
-            "microinjected embryo",
-            "embryonic fibroblast",
-            "embryo fibroblast",
-            "human embryonic stem",
-            "embryo implantation",
-            "embryos die",
-            "embryonic-lethal",
-            "embryonically lethal",
-            "embryonated",
-            "chimera embryo",
-            "embryonal stem",
-            "embryonic viability",
-            "chicken embryo",
-            "embryo manip",
-            "embryonic mortality",
-            "postembryon",
-            "embryonic carcinoma",
-            "embryo injection",
-            "carcinoembryonic",
-            "HEK293T  embryo",
-            "embryonic cell line",
-            "embryonic kidney cells",
-            "embryonic myosin",
-            "embryonic myogenesis",
-            "injected embryo",
-            "human embryo",
-            "embryonated chick",
-            "embryo lethal",
-            "human embryonic",
-            "rat embryo",
-            "chick embryo",
-            "cultured embryo",
-            "embryo culture",
-            "embryoid body",
-            "zebrafish embryo",
-            "embryology",
-            "bovine embryo",
-            "embryonal rhabdomyosarcoma",
-            "Xenopus embryo",
-            "embryonic rat",
-            "embryonic kidney 293",
-            "embryonal fibroblast",
-            ]
+    cat1Terms = ['embryo']
+    # mapping of lower case exclude terms to what to replace them with
+    #  (for now, map them to upper case so they won't be matched by cat1Terms)
+    cat1TermsDict = {x.lower() : x.upper() for x in cat1Terms}
 
+    cat1Exclude= [
+        "embryonic lethal",
+        "embryonic science",
+        "embryonic death",
+        "manipulating the mouse embryo: a laboratory manual",
+        "Anat. Embryol.",
+        "embryonic chick",
+        "anat embryol",
+        "embryonic stem",
+        "embryogenesis",
+        "drosophila embryo",
+        "embryoid bodies",
+        "d'embryologie",
+        "microinjected embryo",
+        "embryonic fibroblast",
+        "embryo fibroblast",
+        "human embryonic stem",
+        "embryo implantation",
+        "embryos die",
+        "embryonic-lethal",
+        "embryonically lethal",
+        "embryonated",
+        "chimera embryo",
+        "embryonal stem",
+        "embryonic viability",
+        "chicken embryo",
+        "embryo manip",
+        "embryonic mortality",
+        "postembryon",
+        "embryonic carcinoma",
+        "embryo injection",
+        "carcinoembryonic",
+        "HEK293T  embryo",
+        "embryonic cell line",
+        "embryonic kidney cells",
+        "embryonic myosin",
+        "embryonic myogenesis",
+        "injected embryo",
+        "human embryo",
+        "embryonated chick",
+        "embryo lethal",
+        "human embryonic",
+        "rat embryo",
+        "chick embryo",
+        "cultured embryo",
+        "embryo culture",
+        "embryoid body",
+        "zebrafish embryo",
+        "embryology",
+        "bovine embryo",
+        "embryonal rhabdomyosarcoma",
+        "Xenopus embryo",
+        "embryonic rat",
+        "embryonic kidney 293",
+        "embryonal fibroblast",
+        ]
+    # mapping of lower case exclude terms to what to replace them with
+    #  (for now, map them to upper case so they won't be matched by cat1Terms)
+    cat1ExcludeDict = {x.lower() : x.upper() for x in cat1Exclude}
+
+    def __init__(self, numChars=20):
+        self.numChars = numChars  # num of chars of surrounding context to keep
+
+    def getExplanation(self):
+        output = 'Category1 terms:\n'
+        for t in sorted(self.cat1TermsDict.keys()):
+            output += "\t'%s'\n" % t
+
+        output += 'Category1 Exclude terms:\n'
+        for t in sorted(self.cat1ExcludeDict.keys()):
+            output += "\t'%s'\n" % t
+        output += '-' * 50 + '\n'
+        return output
 
     def routeThisRef(self, text):
-        """ given the text of a reference, return "Routed" or "Not Routed"
+        """ given the text of a reference, return "Yes" or "No"
         """
-        return "Routed" # (for now)
+        cat1MatchCounts = {'total': 0}  # { 'matched term': count }
+        cat1Matches = {}                # { 'matched term': [ (pre, post) ] }
+        cat1ExcludeMatchCounts = {'total': 0}  # { 'matched term': count }
+        routing = "No"
+
+        # go through text, replacing any cat1Exclude terms
+        newText = text
+        for term, replacement in self.cat1ExcludeDict.items():
+            splits = newText.split(term)
+            newText = replacement.join(splits)
+            # update counts for this term
+            numMatches = (len(splits) -1)
+            if numMatches:
+                cat1ExcludeMatchCounts[term] = numMatches
+                cat1ExcludeMatchCounts['total'] += numMatches
+
+        # get cat1Term matches
+        ctxLen = self.numChars
+        textLen = len(newText)
+        for term in self.cat1TermsDict.keys():
+            termLen = len(term)
+
+            # find all matches to the term
+            start = 0   # where to start the search from
+            matchStart = newText.find(term, start)
+            while matchStart != -1:
+                # update match counts
+                cat1MatchCounts[term] = cat1MatchCounts.get(term, 0) +1
+                cat1MatchCounts['total'] += 1
+
+                # store pre/post char context for this match
+                preStart = max(0, matchStart-ctxLen)
+                postEnd  = min(textLen, matchStart + termLen + ctxLen)
+                pre  = newText[ preStart: matchStart]
+                post = newText[ matchStart+termLen: postEnd]
+                if not term in cat1Matches:
+                    cat1Matches[term] = []
+                cat1Matches[term].append((pre,post))
+
+                # find next match
+                start = matchStart + termLen
+                matchStart = newText.find(term, start)
+
+        if cat1MatchCounts['total']: routing = "Yes"
+
+        self.cat1Matches = cat1Matches
+        self.cat1ExcludeMatchCounts = cat1ExcludeMatchCounts
+
+        return routing, cat1MatchCounts['total'], cat1ExcludeMatchCounts['total']
+
+    def getCat1Matches(self): return self.cat1Matches
+    def getCat1ExcludeMatchCounts(self): return self.cat1ExcludeMatchCounts
+#-----------------------------------
+
+FIELDSEP = '|'
+hdr = FIELDSEP.join(['ID',
+                    'knownClassName',
+                    'routing',
+                    'predType',
+                    'Cat1 matches',
+                    'Cat1 Exclude matches',
+                    ] + sampleObjType.getExtraInfoFieldNames()) + '\n'
+
+def formatRouting(r, routing, predType, numMatches, numExcludeMatches):
+    t = FIELDSEP.join([r.getID(),
+                    r.getKnownClassName(),
+                    routing,
+                    predType,
+                    str(numMatches),
+                    str(numExcludeMatches),
+                    ] + r.getExtraInfo()) + '\n'
+    return t
+
+def formatMatches(matches):
+    output = ''
+    for term, contexts in matches.items():
+        output += "%s:\n" % term
+        numSpaces = len(term) +1
+        for pre, post in contexts:
+            output += " " * numSpaces
+            output += "'%s%s%s'\n" % (pre, term.upper(), post)
+    return output
+
+def formatExcludes(counts):
+    output = 'Exclude term match counts:\n'
+    for term in sorted(counts.keys()):
+        if term != 'total' and counts[term]:
+            output += "%4d '%s'\n" % (counts[term], term)
+    return output
+
 #-----------------------------------
 
 def process():
     ''' go through the refs and determine routing
     '''
     startTime = time.time()
-    verbose("%s\nHitting database %s %s as mgd_public\n" % \
-                                        (time.ctime(), args.host, args.db,))
-    # Build sql
-    if args.nResults != 0:
-        limitClause = 'limit %d\n' % args.nResults
-        q += limitClause
+    timeString = time.ctime()
+    verbose(timeString + '\n')
+    gxdRouter = GXDrouter(numChars=30)
 
-    outputSampleSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
+    # get testSet from stdin
+    testSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
+    testSet.read(sys.stdin)
+    verbose('read %d refs to determine routing\n' % testSet.getNumSamples())
+    verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
 
-    results = db.sql(q, 'auto')
+    # set up output files and various counts
+    routingsFile = open(args.routingsFilename, 'w')
+    routingsFile.write(timeString + '\n')
+    routingsFile.write(hdr)
 
-    for i,r in enumerate(results):
-        if i % 200 == 0: verbose("..%d" % i)
-        text = getText4Ref(r['_refs_key'])
-        text = cleanUpTextField(text) + '\n'
-        try:
-            sample = sqlRecord2ClassifiedSample(r, text )
-            outputSampleSet.addSample(sample)
-        except:         # if some error, try to report which record
-            sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
-            raise
+    detailsFile = open(args.detailsFilename, 'w')
+    detailsFile.write(timeString + '\n')
+    detailsFile.write(gxdRouter.getExplanation())
+    detailsFile.write(hdr + '\n')
 
-    # Add meta-data to sample set
-    outputSampleSet.setMetaItem('host', args.host)
-    outputSampleSet.setMetaItem('db', args.db)
-    outputSampleSet.setMetaItem('time', time.strftime("%Y/%m/%d-%H:%M:%S"))
+    counts = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}
+    numProcessed = 0
 
-    # Write output
-    outputSampleSet.write(sys.stdout)
+    if args.nToDo > 0: samples = testSet.getSamples()[:args.nToDo]
+    else: samples = testSet.getSamples()
 
-    verbose('\n')
-    verbose("wrote %d samples:\n" % outputSampleSet.getNumSamples())
+    # for each record, routeThisRef(), gather counts, write list of routings
+    for ref in samples:
+        text = ref.getDocument()
+        routing, numMatches, numExcludeMatches = gxdRouter.routeThisRef(text)
+
+        predType = predictionType(ref.getKnownClassName(), routing,
+                                                        positiveClass='Yes')
+        counts[predType] += 1
+        numProcessed += 1
+
+        r = formatRouting(ref, routing, predType, numMatches, numExcludeMatches)
+        routingsFile.write(r)
+
+        matchReport = formatMatches(gxdRouter.getCat1Matches())
+        excludeReport = formatExcludes(gxdRouter.getCat1ExcludeMatchCounts())
+        detailsFile.write(r)
+        detailsFile.write(matchReport)
+        detailsFile.write(excludeReport)
+        detailsFile.write('\n')
+    # end routing loop
+
+    routingsFile.close()
+    detailsFile.close()
+
+    # write overall mappings to args.mappingsFilename
+
+    # compute Precision, Recall, write summary
+    p = counts['TP'] / (counts['TP'] + counts['FP']) * 100
+
+    if (counts['TP'] + counts['FN']) == 0: r = 0.0      # check for zero div
+    else: r = counts['TP'] / (counts['TP'] + counts['FN']) * 100
+
+    if (counts['TN'] + counts['FN']) == 0: n = 0.0      # check for zero div
+    else: n = counts['TN'] / (counts['TN'] + counts['FN']) * 100
+
+    summary = 'Summary\n'
+    for predType in ['TP', 'FP', 'TN', 'FN']:
+        summary += "%s: %d\n" % (predType, counts[predType])
+
+    summary += "Precision: %.2f%%\n" % p
+    summary += "Recall   : %.2f%%\n" % r
+    summary += "NPV      : %.2f%%\n" % n
+
+    summaryFile = open(args.summaryFilename, 'w')
+    summaryFile.write(timeString + '\n')
+    summaryFile.write(summary)
+    summaryFile.close()
+
+    verbose(summary)
+    verbose("wrote %d routings to '%s'\n" % (numProcessed,
+                                                    args.routingsFilename))
     verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
 
     return
-#-----------------------------------
-
-def cleanUpTextField(text):
-
-    if text == None:
-        text = ''
-
-    if args.maxTextLength:	# handy for debugging
-        text = text[:args.maxTextLength]
-
-    text = removeNonAscii(cleanDelimiters(text))
-    text = text.replace('\n', ' ')
-    text = text.replace('\r', ' ')
-    return text
-#-----------------------------------
-
-def cleanDelimiters(text):
-    """ remove RECORDEND and FIELDSEPs from text (replace w/ ' ')
-    """
-    return text.replace(RECORDEND,' ').replace(FIELDSEP,' ')
 #-----------------------------------
 
 def verbose(text):
@@ -219,33 +363,27 @@ def verbose(text):
 
 def doAutomatedTests():
 
-    #sys.stdout.write("No automated tests at this time\n")
-    #return
+    sys.stdout.write("No automated tests at this time\n")
+    return
 
-    sys.stdout.write("%s\nHitting database %s %s as mgd_public\n" % \
-                                        (time.ctime(), args.host, args.db,))
     sys.stdout.write("Running automated unit tests...\n")
     unittest.main(argv=[sys.argv[0], '-v'],)
 
 class MyTests(unittest.TestCase):
-    def test_getText4Ref(self):
-        t = getText4Ref('11943') # no text
-        self.assertEqual(t, '')
-
-        t = getText4Ref('361931') # multiple sections
-        expText = 'lnk/ mice.\n\n\n\nfig. 5.' # boundry body-author fig legends
-        found = t.find(expText)
-        self.assertNotEqual(found, -1)
+    pass
+#    def test_getText4Ref(self):
+#        t = getText4Ref('11943') # no text
+#        self.assertEqual(t, '')
+#
+#        t = getText4Ref('361931') # multiple sections
+#        expText = 'lnk/ mice.\n\n\n\nfig. 5.' # boundry body-author fig legends
+#        found = t.find(expText)
+#        self.assertNotEqual(found, -1)
 
 #-----------------------------------
 
 def main():
-    db.set_sqlServer  (args.host)
-    db.set_sqlDatabase(args.db)
-    db.set_sqlUser    ("mgd_public")
-    db.set_sqlPassword("mgdpub")
-
-    if   args.inputFile == 'test': doAutomatedTests()
+    if args.baseName == 'test': doAutomatedTests()
     else: process()
 
     exit(0)

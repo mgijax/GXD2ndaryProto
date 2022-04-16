@@ -67,7 +67,6 @@ class ClassifiedRefSample (RefSample, ClassifiedSample):
     extraInfoFieldNames = [ \
             'relevance',
             'confidence',
-            'orig TP/FP',
             'GXD status',
             'journal',
             ]
