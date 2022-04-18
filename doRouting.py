@@ -90,56 +90,21 @@ def getArgs():
 args = getArgs()
 args.routingsFilename = "%sRoutings.txt" % args.baseName
 args.detailsFilename  = "%sDetails.txt" % args.baseName
+args.details2Filename  = "%sDetails.1line.txt" % args.baseName
 args.matchesFilename  = "%sMatches.txt" % args.baseName
 args.summaryFilename  = "%sSummary.txt" % args.baseName
 
 #-----------------------------------
 class GXDrouter (object):
     cat1Terms = ['embryo']
-    # mapping of lower case exclude terms to what to replace them with
-    #  (for now, map them to upper case so they won't be matched by cat1Terms)
+    # Not using the x.upper() right now as we are not replacing these terms
     cat1TermsDict = {x.lower() : x.upper() for x in cat1Terms}
 
     cat1Exclude= [
-        "embryonic lethal",
-        "embryonic science",
-        "embryonic death",
-        "manipulating the mouse embryo: a laboratory manual",
-        "Anat. Embryol.",
-        "embryonic chick",
         "anat embryol",
         "embryonic stem",
         "embryogenesis",
-        "drosophila embryo",
-        "embryoid bodies",
-        "d'embryologie",
-        "microinjected embryo",
-        "embryonic fibroblast",
-        "embryo fibroblast",
-        "human embryonic stem",
-        "embryo implantation",
-        "embryos die",
-        "embryonic-lethal",
-        "embryonically lethal",
-        "embryonated",
-        "chimera embryo",
-        "embryonal stem",
-        "embryonic viability",
-        "chicken embryo",
-        "embryo manip",
-        "embryonic mortality",
-        "postembryon",
-        "embryonic carcinoma",
-        "embryo injection",
-        "carcinoembryonic",
-        "HEK293T  embryo",
-        "embryonic cell line",
-        "embryonic kidney cells",
-        "embryonic myosin",
-        "embryonic myogenesis",
-        "injected embryo",
-        "human embryo",
-        "embryonated chick",
+        "embryonic lethal",
         "embryo lethal",
         "human embryonic",
         "rat embryo",
@@ -149,12 +114,83 @@ class GXDrouter (object):
         "embryoid body",
         "zebrafish embryo",
         "embryology",
+        "embryonic science",
+        "drosophila embryo",
+        "embryonic fibroblast",
+        "embryo fibroblast",
+        "embryoid bodies",
+        "embryo implantation",
+        "embryos die",
+        "embryonic-lethal",
+        "embryonic death",
+        "embryonically lethal",
+        "embryonated",
+        "manipulating the mouse embryo: a laboratory manual",
+        "chimera embryo",
+        "embryonal",
+        "embryonic viability",
+        "chicken embryo",
+        "embryo manip",
+        "embryonic mortality",
+        "postembryon",
+        "embryonic carcinoma",
+        "Anat. Embryol.",
+        "embryo injection",
+        "carcinoembryonic",
+        "HEK293T  embryo",
+        "d'embryologie",
+        "embryonic cell line",
+        "embryonic kidney cells",
+        "embryonic myosin",
+        "embryonic myogenesis",
+        "microinjected embryo",
+        "injected embryo",
+        "human embryo",
+        "embryonic chick",
         "bovine embryo",
-        "embryonal rhabdomyosarcoma",
         "Xenopus embryo",
-        "embryonic rat",
         "embryonic kidney 293",
-        "embryonal fibroblast",
+        "embryo production",
+        "embryo survival",
+        "embryo transfer",
+        "embryo yield",
+        "embryo loss",
+        "embryo resorption",
+        "embryo treated",
+        "transferred embryo",
+        "embryo exposed",
+        "embryos were injected",
+        "embryos were cultured",
+        "porcine embryo",
+        "embryo medium",
+        "laevis embryo",
+        "in vitro embryo",
+        "hpf embryo",
+        "treated embryo",
+        "embryos were treated",
+        "cattle embryo",
+        "goat embryo",
+        "embryonic rat",
+        "transgenic embryo",
+        "urchin embryo",
+        "embryos microinject",
+        "chimeric embryo",
+        "embryonic culture",
+        "medaka embryo",
+        "avian embryo",
+        "embryo was dissociated",
+        "fish embryo",
+        "embryonic medium",
+        "broiler embryo",
+        "parthenogenetic embryo",
+        "elegans embryo",
+        "worm embryo",
+        "fly embryo",
+        "ivp embryo",
+        "embryos injected",
+        "embryonic engineering",
+        "embryonic alkaline phosphatase",
+        "embryo-grade",
         ]
     # mapping of lower case exclude terms to what to replace them with
     #  (for now, map them to upper case so they won't be matched by cat1Terms)
@@ -167,12 +203,12 @@ class GXDrouter (object):
                 'Immunohistochem',
                 'In situ',
                 'Knock-in',
-                'Knockin',
                 'RT-PCR',
                 'qRT-PCR',
                 'RT-qPCR',
                 'Real time pcr',
                 ]
+    # Not using the x.upper() right now as we are not replacing these terms
     cat2TermsDict = {x.lower() : x.upper() for x in cat2Terms}
 
     def __init__(self, numChars=20):
@@ -221,12 +257,10 @@ class GXDrouter (object):
         # get cat1Term matches
         self.getPositiveMatches(newText, self.cat1TermsDict.keys(),
                                                 cat1MaCounts, cat1MaContexts)
-
-        if cat1MaCounts['total']:       # got some matches
-            self.getPositiveMatches(newText, self.cat2TermsDict.keys(),
+        self.getPositiveMatches(newText, self.cat2TermsDict.keys(),
                                                 cat2MaCounts, cat2MaContexts)
-            if cat2MaCounts['total']:
-                routing = "Yes"
+        if cat1MaCounts['total'] and cat2MaCounts['total']:
+            routing = "Yes"
 
         self.cat1ExcludeMaCounts = cat1ExcludeMaCounts
 
@@ -248,6 +282,7 @@ class GXDrouter (object):
         textLen = len(text)
         for term in terms:
             termLen = len(term)
+            maContexts[term] = []
 
             # find all matches to the term
             start = 0   # where to start the search from
@@ -262,8 +297,6 @@ class GXDrouter (object):
                 postEnd  = min(textLen, matchStart + termLen + ctxLen)
                 pre  = text[ preStart: matchStart]
                 post = text[ matchStart+termLen: postEnd]
-                if not term in maContexts:
-                    maContexts[term] = []
                 maContexts[term].append((pre,post))
 
                 # find next match
@@ -279,7 +312,7 @@ class GXDrouter (object):
 #-----------------------------------
 
 FIELDSEP = '|'
-hdr = FIELDSEP.join(['ID',
+routingHdr = FIELDSEP.join(['ID',
                     'knownClassName',
                     'routing',
                     'predType',
@@ -303,10 +336,32 @@ def formatRouting(r, routing, predType, numCat1Matches, numCat1ExcludeMatches,
 def formatMatches(matches):
     output = ''
     for term, contexts in matches.items():
-        output += "%s:\n" % term
-        for pre, post in contexts:
-            output += "\t'%s%s%s'\n" % (pre, term.upper(), post)
+        if contexts:
+            output += "%s:\n" % term
+            for pre, post in contexts:
+                output += "\t'%s%s%s'\n" % (pre, term.upper(), post)
     return output
+
+def formatMatches2(ref, routing, predType, cat1MaContexts, cat2MaContexts):
+    """ format cat1 and cat2 match contexts in 1 line for Jackie's 
+        spreadsheet
+    """
+    output = '\t'.join([ref.getID(),
+                        ref.getKnownClassName(),
+                        routing,
+                        predType,
+                        ])
+    for term in sorted(cat1MaContexts.keys()):
+        termOutput = '|'.join([ "'%s%s%s'" % (pre, term.upper(), post) \
+                                    for pre, post in cat1MaContexts[term]])
+        output += '\t' + termOutput
+
+    for term in sorted(cat2MaContexts.keys()):
+        termOutput = '|'.join([ "'%s%s%s'" % (pre, term.upper(), post) \
+                                    for pre, post in cat2MaContexts[term]])
+        output += '\t' + termOutput
+
+    return output + '\n'
 
 def formatExcludes(counts):
     output = 'Exclude term match counts:\n'
@@ -334,21 +389,27 @@ def process():
     # set up output files and various counts
     routingsFile = open(args.routingsFilename, 'w')
     routingsFile.write(timeString + '\n')
-    routingsFile.write(hdr)
+    routingsFile.write(routingHdr)
 
     detailsFile = open(args.detailsFilename, 'w')
     detailsFile.write(timeString + '\n')
     detailsFile.write(gxdRouter.getExplanation())
-    detailsFile.write(hdr + '\n')
+    detailsFile.write(routingHdr + '\n')
 
-    counts = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}
-    numProcessed = 0
+    details2File = open(args.details2Filename, 'w')
+    details2File.write(timeString + '\n')
+
+    allCounts  = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}   # for all refs
+    keepCounts = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}   # for keep refs
+    discCounts = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}   # for discard refs
+
+    numProcessed = 0            # total number of references processed
 
     if args.nToDo > 0: samples = testSet.getSamples()[:args.nToDo]
     else: samples = testSet.getSamples()
 
     # for each record, routeThisRef(), gather counts, write list of routings
-    for ref in samples:
+    for i, ref in enumerate(samples):
         text = ref.getDocument()
         routing = gxdRouter.routeThisRef(text)
         numCat1Matches = gxdRouter.getCat1MaCounts()['total']
@@ -357,7 +418,14 @@ def process():
 
         predType = predictionType(ref.getKnownClassName(), routing,
                                                         positiveClass='Yes')
-        counts[predType] += 1
+        allCounts[predType] += 1
+
+        relevance = ref.getField('relevance')
+        if relevance == 'keep':
+            keepCounts[predType] += 1
+        else:
+            discCounts[predType] += 1
+
         numProcessed += 1
 
         r = formatRouting(ref, routing, predType, numCat1Matches,
@@ -371,29 +439,42 @@ def process():
         detailsFile.write(matchReport)
         detailsFile.write(excludeReport)
         detailsFile.write('\n')
+
+        if i == 0:      # 1st record, output header for 1line details file
+            hdr2 = '\t'.join(['ID',
+                            'knownClassName',
+                            'routing',
+                            'predType',
+                            ]
+                            + sorted(gxdRouter.getCat1MaContexts().keys())
+                            + sorted(gxdRouter.getCat2MaContexts().keys())
+                            ) + '\n'
+            details2File.write(hdr2)
+        details2Report = formatMatches2(ref, routing, predType,
+                                                gxdRouter.getCat1MaContexts(),
+                                                gxdRouter.getCat2MaContexts(),)
+        details2File.write(details2Report)
     # end routing loop
 
     routingsFile.close()
     detailsFile.close()
+    details2File.close()
 
     # write overall mappings to args.mappingsFilename
 
     # compute Precision, Recall, write summary
-    p = counts['TP'] / (counts['TP'] + counts['FP']) * 100
-
-    if (counts['TP'] + counts['FN']) == 0: r = 0.0      # check for zero div
-    else: r = counts['TP'] / (counts['TP'] + counts['FN']) * 100
-
-    if (counts['TN'] + counts['FN']) == 0: n = 0.0      # check for zero div
-    else: n = counts['TN'] / (counts['TN'] + counts['FN']) * 100
-
     summary = 'Summary\n'
-    for predType in ['TP', 'FP', 'TN', 'FN']:
-        summary += "%s: %d\n" % (predType, counts[predType])
+    for counts, label in [(allCounts, 'Overall'), (keepCounts, 'Keeps'),
+                                                    (discCounts, 'Discards')]:
+        summary += label + '\n'
+        for predType in ['TP', 'FP', 'TN', 'FN']:
+            summary += "%s: %d\n" % (predType, counts[predType])
 
-    summary += "Precision: %.2f%%\n" % p
-    summary += "Recall   : %.2f%%\n" % r
-    summary += "NPV      : %.2f%%\n" % n
+        p, r, npv = computeMetrics(counts)
+        summary += "Precision: %.2f%%\n" % p
+        summary += "Recall   : %.2f%%\n" % r
+        summary += "NPV      : %.2f%%\n" % npv
+        summary += '\n'
 
     summaryFile = open(args.summaryFilename, 'w')
     summaryFile.write(timeString + '\n')
@@ -406,6 +487,18 @@ def process():
     verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
 
     return
+#-----------------------------------
+
+def computeMetrics(counts):
+    p = counts['TP'] / (counts['TP'] + counts['FP']) * 100
+
+    if (counts['TP'] + counts['FN']) == 0: r = 0.0      # check for zero div
+    else: r = counts['TP'] / (counts['TP'] + counts['FN']) * 100
+
+    if (counts['TN'] + counts['FN']) == 0: npv = 0.0      # check for zero div
+    else: npv = counts['TN'] / (counts['TN'] + counts['FN']) * 100
+
+    return p, r, npv
 #-----------------------------------
 
 def verbose(text):
