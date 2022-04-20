@@ -410,7 +410,7 @@ def process():
 
     # for each record, routeThisRef(), gather counts, write list of routings
     for i, ref in enumerate(samples):
-        text = ref.getDocument()
+        text = ref.getDocument()[:-1]   # remove \n at end of each doc
         routing = gxdRouter.routeThisRef(text)
         numCat1Matches = gxdRouter.getCat1MaCounts()['total']
         numCat1ExcludeMatches = gxdRouter.getCat1ExcludeMaCounts()['total']
