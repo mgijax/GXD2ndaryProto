@@ -27,6 +27,7 @@ import argparse
 import unittest
 #import db
 import refSample as SampleLib
+#import figureText
 from sklearnHelperLib import predictionType
 #from utilsLib import removeNonAscii
 #-----------------------------------
@@ -90,7 +91,7 @@ def getArgs():
 args = getArgs()
 args.routingsFilename = "%sRoutings.txt" % args.baseName
 args.detailsFilename  = "%sDetails.txt" % args.baseName
-args.details2Filename  = "%sDetails.1line.txt" % args.baseName
+args.details2Filename = "%sDetails.1line.txt" % args.baseName
 args.matchesFilename  = "%sMatches.txt" % args.baseName
 args.summaryFilename  = "%sSummary.txt" % args.baseName
 
@@ -530,9 +531,73 @@ class MyTests(unittest.TestCase):
 
 def main():
     if args.baseName == 'test': doAutomatedTests()
+    elif args.baseName == 'static': doStaticAnalysis()
     else: process()
 
     exit(0)
+#-----------------------------------
+class TermStats (object):
+    def __init__(self, term, numPos, numNeg):
+        self.term = term
+        self.numPos = numPos
+        self.numNeg = numNeg
+
+def doStaticAnalysis():
+    startTime = time.time()
+    timeString = time.ctime()
+    verbose(timeString + '\n')
+    gxdRouter = GXDrouter(numChars=30)
+    #converter = figureText.Text2FigConverter(conversionType='legCloseWords')
+
+    testSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
+    testSet.read(sys.stdin)
+
+    if args.nToDo > 0: samples = testSet.getSamples()[:args.nToDo]
+    else: samples = testSet.getSamples()
+
+    verbose('read %d refs for static analysis\n' % testSet.getNumSamples())
+    verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
+
+    totalNumPos = testSet.getNumPositives()
+    totalNumNeg = testSet.getNumNegatives()
+    TermsAndStats = []
+    header = "'%s'\t%s\t%s\t%s\t%s\t%s\n" % ('term', 'numPos', 'numNeg',
+                                        'posFraction', 'negFraction', 'dValue')
+    sys.stdout.write(header)
+
+    #for term in ['culture']:
+    for term in gxdRouter.cat1Terms + gxdRouter.cat2Terms:
+        term = term.lower()
+        numPos = 0
+        numNeg = 0
+        for i, ref in enumerate(samples):
+            if i % 200 == 0: verbose('.')
+
+            text = ref.getDocument()
+            #text = ' '.join(converter.text2FigText(text))   # doesn't work yet
+
+            # remove exclude terms first
+            newText = text
+            for exTerm, replacement in gxdRouter.cat1ExcludeDict.items():
+                splits = newText.split(exTerm)
+                newText = replacement.join(splits)
+
+            if newText.find(term) != -1:
+                if ref.isPositive():
+                    numPos += 1
+                else:
+                    numNeg += 1
+        ts = TermStats(term, numPos, numNeg)
+        ts.posFraction = numPos / totalNumPos
+        ts.negFraction = numNeg / totalNumNeg
+        ts.dValue = ts.posFraction - ts.negFraction     # discrimative value
+        TermsAndStats.append(ts)
+
+        sys.stdout.write("'%s'\t%d\t%d\t%.2f\t%.2f\t%.2f\n" % \
+                        (ts.term, ts.numPos, ts.numNeg,
+                        ts.posFraction, ts.negFraction, ts.dValue))
+    verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
+    return
 #-----------------------------------
 if __name__ == "__main__":
     main()
