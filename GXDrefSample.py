@@ -16,6 +16,7 @@ figConverterLegCloseWords50 = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
                                             numWords=50)
 #-----------------------------------
+CONTEXT = 0
 AgeMappings = [
     TextMapping('eday',
         # Original: was too broad
@@ -30,21 +31,22 @@ AgeMappings = [
             r'|e1[012356789]' +    # E (no space) double digits - omit E14
             r'|e\s?20' +           # E double digits
             r'|embryonic\sdays?\s\d\d?(?:[.]\d\d?)?' + # spelled out, opt decim
-        r')\b', '__mouse_age', context=0),
+        r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('dpc',
         r'\b(?:' +
             r'days?\spost\s(?:conception|conceptus|coitum)' +
             r'|\d\d?dpc' +         # dpc w/ a digit or two before (no space)
             r'|dpc' +              # dpc as a word by itself
-        r')\b', '__mouse_age', context=0),
+        r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('ts',
         r'\b(?:' +
             r'theiler\sstages?|TS(?:\s|-)?\d\d?' +
-        r')\b', '__mouse_age', context=0),
+        r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('ee',   # early embryo
         r'\b(?:' +
-            r'blastocysts?|blastomeres?|fetus|fetuses' +
-            r'|(?:(?:early|mid|late)(?:\s|-))?streak|morula|somites?' +
+            r'blastocysts?|blastomeres?|fetus|fetuses|headfold' +
+            r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
+            r'|(?:(?:limb)(?:\s|-))?buds?' +
             r'|(?:' +
                 r'(?:[1248]|one|two|four|eight)(?:\s|-)cell\s' +
                 r'(?:' +   # "embryo" or "stage" must come after [1248] cell
@@ -54,13 +56,13 @@ AgeMappings = [
                     r')' +
                 r')' +
             r')' +
-        r')\b', '__mouse_age'),
-    TextMapping('postnatal',    # 11/1/2021: leave Pnn out of mapping, these are
-                                #   often gene symbols or cell lines
-        r'\b(?:' +
-            r'postnatal|neonatal|new(?:\s|-)?borns?|adults?|ages?' +
-            #r'|P\d\d?' +  # note this matches P53 P63 P73 - common gene syn's
-        r')\b', '__mouse_age', context=0),
+        r')\b', '__mouse_age', context=CONTEXT),
+#    TextMapping('postnatal',    # 11/1/2021: leave Pnn out of mapping, these
+#                                #   are often gene symbols or cell lines
+#        r'\b(?:' +
+#            r'postnatal|neonatal|new(?:\s|-)?borns?|adults?|ages?' +
+#            #r'|P\d\d?' +  # note this matches P53 P63 P73 - common gene syn's
+#        r')\b', '__mouse_age', context=CONTEXT),
     ]
 
 textTransformer_age = TextTransformer(AgeMappings)
