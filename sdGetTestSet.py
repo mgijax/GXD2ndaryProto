@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 '''
   Purpose:
-           run sql to get test set
+           run sql to get a test set of refs for GXD secondary triage analysis.
+           Include all extracted text sections except references and supp data.
            (minor) Data transformations include:
             replacing non-ascii chars with ' '
             replacing FIELDSEP and RECORDSEP chars in the doc text w/ ' '
-
-            To run automated tests: python sdGetKnownSamples.py test
+            Keep paragraph boundaries ('\n\n') to enable finding of figure
+                legends.
 
   Outputs:      Delimited file to stdout
-                See RefSample.ClassifiedSample for output format
+                See GXDrefSample.ClassifiedSample for output format
 '''
 import sys
 import os
@@ -17,7 +18,7 @@ import time
 import argparse
 import unittest
 import db
-import refSample as SampleLib
+import GXDrefSample as SampleLib
 from utilsLib import removeNonAscii
 #-----------------------------------
 
@@ -227,7 +228,6 @@ def cleanUpTextField(text):
         text = text[:args.maxTextLength]
 
     text = removeNonAscii(cleanDelimiters(text))
-    text = text.replace('\n', ' ')
     text = text.replace('\r', ' ')
     return text
 #-----------------------------------

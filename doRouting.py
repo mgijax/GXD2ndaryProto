@@ -26,8 +26,7 @@ import time
 import argparse
 import unittest
 #import db
-import refSample as SampleLib
-#import figureText
+import GXDrefSample as SampleLib
 from sklearnHelperLib import predictionType
 #from utilsLib import removeNonAscii
 #-----------------------------------
@@ -42,7 +41,8 @@ def getArgs():
         description='test routing algorithm for GXD 2ndary triage proto, read testSet from stdin')
 
     parser.add_argument('baseName', action='store',
-        help="output base file name. 'test' to just run automated tests")
+        help="output base file name. 'test' to just run automated tests. " +
+            "'static' to output static term analysis to stdout.")
 
     parser.add_argument('-l', '--limit', dest='nToDo',
         required=False, type=int, default=0, 		# 0 means ALL
@@ -208,7 +208,9 @@ class GXDrouter (object):
                 'qRT-PCR',
                 'RT-qPCR',
                 'Real time pcr',
+                '__mouse_age',
                 ]
+    #cat2Terms = ['__mouse_age']
     # Not using the x.upper() right now as we are not replacing these terms
     cat2TermsDict = {x.lower() : x.upper() for x in cat2Terms}
 
@@ -245,7 +247,7 @@ class GXDrouter (object):
         routing = "No"  # default routing (until we find matches)
 
         # go through text, replacing any cat1Exclude terms
-        newText = text
+        newText = text.replace('\n', ' ')
         for term, replacement in self.cat1ExcludeDict.items():
             splits = newText.split(term)
             newText = replacement.join(splits)
@@ -411,7 +413,7 @@ def process():
 
     # for each record, routeThisRef(), gather counts, write list of routings
     for i, ref in enumerate(samples):
-        text = ref.getDocument()[:-1]   # remove \n at end of each doc
+        text = ref.getDocument()
         routing = gxdRouter.routeThisRef(text)
         numCat1Matches = gxdRouter.getCat1MaCounts()['total']
         numCat1ExcludeMatches = gxdRouter.getCat1ExcludeMaCounts()['total']
@@ -565,8 +567,7 @@ def doStaticAnalysis():
                                         'posFraction', 'negFraction', 'dValue')
     sys.stdout.write(header)
 
-    #for term in ['culture']:
-    for term in gxdRouter.cat1Terms + gxdRouter.cat2Terms:
+    for term in gxdRouter.cat1Terms + gxdRouter.cat2Terms + ['culture']:
         term = term.lower()
         numPos = 0
         numNeg = 0
@@ -577,7 +578,7 @@ def doStaticAnalysis():
             #text = ' '.join(converter.text2FigText(text))   # doesn't work yet
 
             # remove exclude terms first
-            newText = text
+            newText = text.replace('\n', ' ')
             for exTerm, replacement in gxdRouter.cat1ExcludeDict.items():
                 splits = newText.split(exTerm)
                 newText = replacement.join(splits)
