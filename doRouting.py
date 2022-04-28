@@ -518,7 +518,8 @@ def process():
 #-----------------------------------
 
 def computeMetrics(counts):
-    p = counts['TP'] / (counts['TP'] + counts['FP']) * 100
+    if (counts['TP'] + counts['FP']) == 0: p = 0.0      # check for zero div
+    else: p = counts['TP'] / (counts['TP'] + counts['FP']) * 100
 
     if (counts['TP'] + counts['FN']) == 0: r = 0.0      # check for zero div
     else: r = counts['TP'] / (counts['TP'] + counts['FN']) * 100
