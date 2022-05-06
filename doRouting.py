@@ -95,9 +95,12 @@ args.details2Filename = "%sDetails.1line.txt" % args.baseName
 args.matchesFilename  = "%sMatches.txt" % args.baseName
 args.summaryFilename  = "%sSummary.txt" % args.baseName
 
+SKIPJOURNALFILENAME='/Users/jak/work/GXD2ndaryProto/skipJournals.txt'
+
 #-----------------------------------
 class GXDrouter (object):
-    cat1Terms = ['embryo']
+    cat1Terms = ['__mouse_age']
+    #cat1Terms = ['embryo', '__mouse_age']
     # Not using the x.upper() right now as we are not replacing these terms
     cat1TermsDict = {x.lower() : x.upper() for x in cat1Terms}
 
@@ -233,7 +236,7 @@ class GXDrouter (object):
                 'mount',
                 'mRNA level',
                 'smFish',
-                '__mouse_age',
+                #'__mouse_age',
                 ]
     #cat2Terms = ['__mouse_age']
     # Not using the x.upper() right now as we are not replacing these terms
@@ -241,25 +244,35 @@ class GXDrouter (object):
 
     def __init__(self, numChars=20):
         self.numChars = numChars  # num of chars of surrounding context to keep
+        self.skipJournals = { line[:-1] for line in open(SKIPJOURNALFILENAME, 'r') }
 
     def getExplanation(self):
         output = ''
-        output += 'Category1 terms:\n'
+        output += 'Category1 terms in figtext:\n'
         for t in sorted(self.cat1TermsDict.keys()):
             output += "\t'%s'\n" % t
 
-        output += 'Category2 terms:\n'
+        output += 'Category2 terms in figtext:\n'
         for t in sorted(self.cat2TermsDict.keys()):
             output += "\t'%s'\n" % t
 
         output += 'Category1 Exclude terms:\n'
         for t in sorted(self.cat1ExcludeDict.keys()):
             output += "\t'%s'\n" % t
+
+        output += 'Route=No for these journals:\n'
+        for t in sorted(self.skipJournals):
+            output += "\t'%s'\n" % t
+
         output += '-' * 50 + '\n'
         return output
 
-    def routeThisRef(self, text):
-        """ given the text of a reference, return "Yes" or "No"
+    def routeThisRef_someFullText(self, ref):
+    #def routeThisRef(self, ref):
+        """ Given a reference (ClassifiedRefSample), return "Yes" or "No"
+            Assumes the text of each reference is full text.
+            Searches the full text for cat1 terms, applies figtext extraction
+            for the cat2 terms
         """
         cat1MaCounts = {'total': 0}        # { 'matched term': count }
         cat1MaContexts = {}                # { 'matched term': [ (pre, post) ] }
@@ -269,7 +282,74 @@ class GXDrouter (object):
         cat2MaCounts = {'total': 0}        # { 'matched term': count }
         cat2MaContexts = {}                # { 'matched term': [ (pre, post) ] }
 
+        self.cat1ExcludeMaCounts = cat1ExcludeMaCounts
+
+        self.cat1MaCounts = cat1MaCounts
+        self.cat1MaContexts = cat1MaContexts
+
+        self.cat2MaCounts = cat2MaCounts
+        self.cat2MaContexts = cat2MaContexts
+
+        if ref.getField('journal') in self.skipJournals:
+            return 'No'
+
         routing = "No"  # default routing (until we find matches)
+
+        # go through text, replacing any cat1Exclude terms
+        fullText = ref.getDocument()
+        newText = fullText.replace('\n', ' ')
+        for term, replacement in self.cat1ExcludeDict.items():
+            splits = newText.split(term)
+            newText = replacement.join(splits)
+            # update counts for this term
+            numMatches = (len(splits) -1)
+            if numMatches:
+                cat1ExcludeMaCounts[term] = numMatches
+                cat1ExcludeMaCounts['total'] += numMatches
+
+        # get cat1Term matches against full text
+        self.getPositiveMatches(newText, self.cat1TermsDict.keys(),
+                                                cat1MaCounts, cat1MaContexts)
+
+        # get cat2 matches against figure text without age transformations
+        ref.figureTextLegCloseWords50()
+        #ref.textTransform_age()
+        figText = ref.getDocument()
+        self.getPositiveMatches(figText, self.cat2TermsDict.keys(),
+                                                cat2MaCounts, cat2MaContexts)
+        # determine routing
+        if cat1MaCounts['total'] and cat2MaCounts['total']:
+            routing = "Yes"
+
+        return routing
+
+    #def routeThisRef_figText(self, ref):
+    def routeThisRef(self, ref):
+        """ Given a reference (ClassifiedRefSample), return "Yes" or "No"
+            Just use the text from each reference as is in the dataset,
+                it is either all figure text or all full text
+        """
+        cat1MaCounts = {'total': 0}        # { 'matched term': count }
+        cat1MaContexts = {}                # { 'matched term': [ (pre, post) ] }
+
+        cat1ExcludeMaCounts = {'total': 0} # { 'matched term': count }
+
+        cat2MaCounts = {'total': 0}        # { 'matched term': count }
+        cat2MaContexts = {}                # { 'matched term': [ (pre, post) ] }
+
+        self.cat1ExcludeMaCounts = cat1ExcludeMaCounts
+
+        self.cat1MaCounts = cat1MaCounts
+        self.cat1MaContexts = cat1MaContexts
+
+        self.cat2MaCounts = cat2MaCounts
+        self.cat2MaContexts = cat2MaContexts
+
+        if ref.getField('journal') in self.skipJournals:
+            return 'No'
+
+        routing = "No"  # default routing (until we find matches)
+        text = ref.getDocument()
 
         # go through text, replacing any cat1Exclude terms
         newText = text.replace('\n', ' ')
@@ -285,18 +365,13 @@ class GXDrouter (object):
         # get cat1Term matches
         self.getPositiveMatches(newText, self.cat1TermsDict.keys(),
                                                 cat1MaCounts, cat1MaContexts)
+
+        # get cat2 matches
         self.getPositiveMatches(newText, self.cat2TermsDict.keys(),
                                                 cat2MaCounts, cat2MaContexts)
+        # determine routing
         if cat1MaCounts['total'] and cat2MaCounts['total']:
             routing = "Yes"
-
-        self.cat1ExcludeMaCounts = cat1ExcludeMaCounts
-
-        self.cat1MaCounts = cat1MaCounts
-        self.cat1MaContexts = cat1MaContexts
-
-        self.cat2MaCounts = cat2MaCounts
-        self.cat2MaContexts = cat2MaContexts
 
         return routing
 
@@ -438,8 +513,7 @@ def process():
 
     # for each record, routeThisRef(), gather counts, write list of routings
     for i, ref in enumerate(samples):
-        text = ref.getDocument()
-        routing = gxdRouter.routeThisRef(text)
+        routing = gxdRouter.routeThisRef(ref)
         numCat1Matches = gxdRouter.getCat1MaCounts()['total']
         numCat1ExcludeMatches = gxdRouter.getCat1ExcludeMaCounts()['total']
         numCat2Matches = gxdRouter.getCat2MaCounts()['total']
@@ -488,7 +562,8 @@ def process():
     detailsFile.close()
     details2File.close()
 
-    # write overall mappings to args.mappingsFilename
+    # write overall matches (aggregated across all references)
+    # not implemented yet.
 
     # compute Precision, Recall, write summary
     summary = 'Summary\n'
