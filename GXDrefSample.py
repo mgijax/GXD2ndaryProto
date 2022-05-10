@@ -16,11 +16,17 @@ figConverterLegCloseWords50 = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
                                             numWords=50)
 #-----------------------------------
+#CONTEXT = 20
 CONTEXT = 0
 AgeMappings = [
+    TextMapping('fix1',         # correct any F I G U R E n so it doesn't
+                                # look like embryonic day "E n"
+        r'\b(?:' + figureText.spacedOutRegex('figure') +
+        r')\b', 'figure', context=0),
+    TextMapping('fix2',         # same thing for T A B L E
+        r'\b(?:' + figureText.spacedOutRegex('table') +
+        r')\b', 'table', context=0),
     TextMapping('eday',
-        # Original: was too broad
-        # r'\b(?:(?:e\s?|(?:e(?:mbryonic)?\sdays?\s))\d\d?(?:[.]\d\d?)?)\b',
         # E1 E2 E3 are rarely used & often mean other things
         # E14 is often a cell line, not an age
         r'\b(?:' +
@@ -30,7 +36,10 @@ AgeMappings = [
             r'|e\s1\d' +           # E (w/ space) double digits
             r'|e1[012356789]' +    # E (no space) double digits - omit E14
             r'|e\s?20' +           # E double digits
-            r'|embryonic\sdays?\s\d\d?(?:[.]\d\d?)?' + # spelled out, opt decim
+            r'|embryonic\sdays?' + # spelled out, don't worry about numbers
+            r'|[eg]d\s?\d' +       # ED or GD (embryonic|gestational)day+ 1 dig
+            r'|[eg]d\s?1[0-9]' +   # ED or GD 2 digits: 10-19
+            r'|[eg]d\s?20' +       # ED or GD 2 digits: 20
         r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('dpc',
         r'\b(?:' +
@@ -43,6 +52,8 @@ AgeMappings = [
             r'theiler\sstages?|TS(?:\s|-)?\d\d?' +
         r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('ee',   # early embryo
+                        # mesenchymal mesenchymes? ?
+                        # fetus here or in 'other'?
         r'\b(?:' +
             r'blastocysts?|blastomeres?|fetus|fetuses|headfold' +
             r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
@@ -56,6 +67,12 @@ AgeMappings = [
                     r')' +
                 r')' +
             r')' +
+        r')\b', '__mouse_age', context=CONTEXT),
+    TextMapping('other',   # other terms
+        r'\b(?:' +
+            r'developmental\sstages?' +
+            r'|developmental\sages?' +
+            r'|fetus|fetuses|fetal|foetal' +
         r')\b', '__mouse_age', context=CONTEXT),
 #    TextMapping('postnatal',    # 11/1/2021: leave Pnn out of mapping, these
 #                                #   are often gene symbols or cell lines
