@@ -693,7 +693,9 @@ def doStaticAnalysis():
                                         'posFraction', 'negFraction', 'dValue')
     sys.stdout.write(header)
 
-    for term in gxdRouter.cat1Terms + gxdRouter.cat2Terms + ['culture']:
+    ageCategories = ['__eday', '__dpc', '__ts', '__early_embryo',
+                    '__developmental', '__fetus_al']
+    for term in gxdRouter.cat1Terms + gxdRouter.cat2Terms + ageCategories:
         term = term.lower()
         numPos = 0
         numNeg = 0
