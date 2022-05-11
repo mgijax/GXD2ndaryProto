@@ -41,21 +41,23 @@ AgeMappings = [
             r'|[eg]d\s?1[0-9]' +   # ED or GD 2 digits: 10-19
             r'|[eg]d\s?20' +       # ED or GD 2 digits: 20
         r')\b', '__mouse_age', context=CONTEXT),
+        #r')\b', '__eday', context=CONTEXT),
     TextMapping('dpc',
         r'\b(?:' +
             r'days?\spost\s(?:conception|conceptus|coitum)' +
             r'|\d\d?dpc' +         # dpc w/ a digit or two before (no space)
             r'|dpc' +              # dpc as a word by itself
         r')\b', '__mouse_age', context=CONTEXT),
+        #r')\b', '__dpc', context=CONTEXT),
     TextMapping('ts',
         r'\b(?:' +
             r'theiler\sstages?|TS(?:\s|-)?\d\d?' +
         r')\b', '__mouse_age', context=CONTEXT),
-    TextMapping('ee',   # early embryo
+        #r')\b', '__ts', context=CONTEXT),
+    TextMapping('ee',   # early embryo terms
                         # mesenchymal mesenchymes? ?
-                        # fetus here or in 'other'?
         r'\b(?:' +
-            r'blastocysts?|blastomeres?|fetus|fetuses|headfold' +
+            r'blastocysts?|blastomeres?|headfold' +
             r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
             r'|(?:(?:limb)(?:\s|-))?buds?' +
             r'|(?:' +
@@ -68,12 +70,18 @@ AgeMappings = [
                 r')' +
             r')' +
         r')\b', '__mouse_age', context=CONTEXT),
-    TextMapping('other',   # other terms
+        #r')\b', '__early_embryo', context=CONTEXT),
+    TextMapping('developmental',   # "developmental" terms
         r'\b(?:' +
             r'developmental\sstages?' +
             r'|developmental\sages?' +
-            r'|fetus|fetuses|fetal|foetal' +
         r')\b', '__mouse_age', context=CONTEXT),
+        #r')\b', '__developmental', context=CONTEXT),
+    TextMapping('fetus',   # fetus terms
+        r'\b(?:' +
+            r'fetus|fetuses|fetal|foetal' +
+        r')\b', '__mouse_age', context=CONTEXT),
+        #r')\b', '__fetus_al', context=CONTEXT),
 #    TextMapping('postnatal',    # 11/1/2021: leave Pnn out of mapping, these
 #                                #   are often gene symbols or cell lines
 #        r'\b(?:' +
