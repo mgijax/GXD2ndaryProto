@@ -55,35 +55,35 @@ def getArgs():
     parser.add_argument('-q', '--quiet', dest='verbose', action='store_false',
         required=False, help="skip helpful messages to stderr")
 
-    defaultHost = os.environ.get('PG_DBSERVER', 'bhmgidevdb01')
-    defaultDatabase = os.environ.get('PG_DBNAME', 'prod')
+    #defaultHost = os.environ.get('PG_DBSERVER', 'bhmgidevdb01')
+    #defaultDatabase = os.environ.get('PG_DBNAME', 'prod')
 
-    parser.add_argument('-s', '--server', dest='server', action='store',
-        required=False, default=defaultHost,
-        help='db server. Shortcuts:  adhoc, prod, dev, test. (Default %s)' %
-                defaultHost)
+    #parser.add_argument('-s', '--server', dest='server', action='store',
+    #    required=False, default=defaultHost,
+    #    help='db server. Shortcuts:  adhoc, prod, dev, test. (Default %s)' %
+    #            defaultHost)
 
-    parser.add_argument('-d', '--database', dest='database', action='store',
-        required=False, default=defaultDatabase,
-        help='which database. Example: mgd (Default %s)' % defaultDatabase)
+    #parser.add_argument('-d', '--database', dest='database', action='store',
+    #    required=False, default=defaultDatabase,
+    #    help='which database. Example: mgd (Default %s)' % defaultDatabase)
 
     args =  parser.parse_args()
 
-    if args.server == 'adhoc':
-        args.host = 'mgi-adhoc.jax.org'
-        args.db = 'mgd'
-    elif args.server == 'prod':
-        args.host = 'bhmgidb01.jax.org'
-        args.db = 'prod'
-    elif args.server == 'dev':
-        args.host = 'mgi-testdb4.jax.org'
-        args.db = 'jak'
-    elif args.server == 'test':
-        args.host = 'bhmgidevdb01.jax.org'
-        args.db = 'prod'
-    else:
-        args.host = args.server
-        args.db = args.database
+    #if args.server == 'adhoc':
+    #    args.host = 'mgi-adhoc.jax.org'
+    #    args.db = 'mgd'
+    #elif args.server == 'prod':
+    #    args.host = 'bhmgidb01.jax.org'
+    #    args.db = 'prod'
+    #elif args.server == 'dev':
+    #    args.host = 'mgi-testdb4.jax.org'
+    #    args.db = 'jak'
+    #elif args.server == 'test':
+    #    args.host = 'bhmgidevdb01.jax.org'
+    #    args.db = 'prod'
+    #else:
+    #    args.host = args.server
+    #    args.db = args.database
 
     return args
 #-----------------------------------
@@ -237,6 +237,31 @@ class GXDrouter (object):
                 'mRNA level',
                 'smFish',
                 #'__mouse_age',
+                ]
+    cat2Terms = [               # Connies new set of terms 5/10/2022
+                'blot',
+                'digoxygenin',
+                'expression',
+                'gfp',
+                'immuno',
+                'in situ',
+                'in-situ',
+                'knockin',
+                'knock in',     # Connie didn't include this
+                'knock-in',
+                'lacz',
+                'mount',
+                'mrna level',
+                'northern',
+                'reporter',
+                'rnascope',
+                'section',
+                'smfish',
+                'stain',
+                'western',
+                'x gal',
+                'xgal',
+                'x-gal',
                 ]
     #cat2Terms = ['__mouse_age']
     # Not using the x.upper() right now as we are not replacing these terms
