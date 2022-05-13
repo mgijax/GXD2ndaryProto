@@ -16,7 +16,7 @@ figConverterLegCloseWords50 = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
                                             numWords=50)
 #-----------------------------------
-#CONTEXT = 20
+#CONTEXT = 30
 CONTEXT = 0
 AgeMappings = [
     TextMapping('fix1',         # correct any F I G U R E n so it doesn't
