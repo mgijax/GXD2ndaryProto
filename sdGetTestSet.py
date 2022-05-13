@@ -9,7 +9,7 @@
             Keep paragraph boundaries ('\n\n') to enable finding of figure
                 legends.
 
-  Outputs:      Delimited file to stdout
+  Outputs:      Delimited file to specified output file.
                 See GXDrefSample.ClassifiedSample for output format
 '''
 import sys
@@ -32,11 +32,14 @@ FIELDSEP     = sampleObjType.getFieldSep()
 def getArgs():
 
     parser = argparse.ArgumentParser( \
-        description='Get test set for GXD 2ndary triage proto, write to stdout')
+        description='Get test set for GXD 2ndary triage proto.')
 
     parser.add_argument('option', action='store', default='counts',
-        choices=['samples', 'test'],
+        choices=['routed', 'notRoutedKeep', 'notRoutedDiscard', 'test'],
         help='get samples or just run automated tests')
+
+    parser.add_argument('outFile', action='store', default='-',
+        help='output file to write to. "-" for stdout.')
 
     parser.add_argument('-l', '--limit', dest='nResults',
         required=False, type=int, default=0, 		# 0 means ALL
@@ -86,87 +89,115 @@ args = getArgs()
 
 #-----------------------------------
 
-def doSamples():
+SQL_routed = """
+-- select TP's: originally routed, and selected by curators
+select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
+    st.term "GXD status", 'TP' "orig TP/FP", b.journal
+from bib_refs b join bib_workflow_status s
+    on (b._refs_key = s._refs_key and s.iscurrent =1
+        and s._group_key = 31576665) -- current GXD status
+join bib_workflow_status s2 on (b._refs_key = s2._refs_key
+    and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
+join bib_workflow_relevance r on (b._refs_key = r._refs_key
+    and r._createdby_key = 1617) -- relevance_classifier
+join acc_accession a on (b._refs_key = a._object_key
+    and a._mgitype_key = 1 and a._logicaldb_key = 1
+    and a.prefixpart = 'MGI:')
+join voc_term st on (s._status_key = st._term_key)
+join voc_term s2t on (s2._status_key = s2t._term_key)
+join voc_term rt on (r._relevance_key = rt._term_key)
+where
+b.isreviewarticle = 0
+and s2._status_key = 31576670 -- routed
+and s._status_key in (31576671, 31576673, 31576674) --chosen,indexed,full-coded
+union
+-- select FP's: originally routed, but rejected by curators
+select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
+    st.term "GXD status", 'FP' "orig TP/FP", b.journal
+from bib_refs b join bib_workflow_status s
+    on (b._refs_key = s._refs_key and s.iscurrent =1
+        and s._group_key = 31576665) -- current GXD status
+join bib_workflow_status s2 on (b._refs_key = s2._refs_key
+    and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
+join bib_workflow_relevance r on (b._refs_key = r._refs_key
+    and r._createdby_key = 1617) -- relevance_classifier
+join acc_accession a on (b._refs_key = a._object_key
+    and a._mgitype_key = 1 and a._logicaldb_key = 1
+    and a.prefixpart = 'MGI:')
+join voc_term st on (s._status_key = st._term_key)
+join voc_term s2t on (s2._status_key = s2t._term_key)
+join voc_term rt on (r._relevance_key = rt._term_key)
+where
+b.isreviewarticle = 0
+and s2._status_key = 31576670 -- routed
+and s._status_key in (31576672) -- Rejected
+"""
+
+SQL_notRoutedKeep = """
+-- select refs originally not routed (no "embryo").
+-- Just keepers and after June 1 2021 for not
+select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
+        st.term "GXD status", 'NE' "orig TP/FP", b.journal
+from bib_refs b join bib_workflow_status s
+    on (b._refs_key = s._refs_key and s.iscurrent =1
+        and s._group_key = 31576665) -- current GXD status
+join bib_workflow_status s2 on (b._refs_key = s2._refs_key
+    and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
+join bib_workflow_relevance r on (b._refs_key = r._refs_key
+    and r._createdby_key = 1617) -- relevance_classifier
+join acc_accession a on (b._refs_key = a._object_key
+    and a._mgitype_key = 1 and a._logicaldb_key = 1
+    and a.prefixpart = 'MGI:')
+join voc_term st on (s._status_key = st._term_key)
+join voc_term s2t on (s2._status_key = s2t._term_key)
+join voc_term rt on (r._relevance_key = rt._term_key)
+where
+b.isreviewarticle = 0
+and s2._status_key = 31576669 -- not routed
+and rt.term = 'keep'
+and b.creation_date > '6/1/2021'
+"""
+
+SQL_notRoutedDiscard = """
+-- select refs originally not routed (no "embryo").
+-- Just discards and after June 1 2021 for not
+select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
+        st.term "GXD status", 'NE' "orig TP/FP", b.journal
+from bib_refs b join bib_workflow_status s
+    on (b._refs_key = s._refs_key and s.iscurrent =1
+        and s._group_key = 31576665) -- current GXD status
+join bib_workflow_status s2 on (b._refs_key = s2._refs_key
+    and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
+join bib_workflow_relevance r on (b._refs_key = r._refs_key
+    and r._createdby_key = 1617) -- relevance_classifier
+join acc_accession a on (b._refs_key = a._object_key
+    and a._mgitype_key = 1 and a._logicaldb_key = 1
+    and a.prefixpart = 'MGI:')
+join voc_term st on (s._status_key = st._term_key)
+join voc_term s2t on (s2._status_key = s2t._term_key)
+join voc_term rt on (r._relevance_key = rt._term_key)
+where
+b.isreviewarticle = 0
+and s2._status_key = 31576669 -- not routed
+and rt.term = 'discard'
+and b.creation_date > '6/1/2021'
+"""
+#-----------------------------------
+
+def doSamples(sql):
     ''' Write known samples to stdout.
     '''
     startTime = time.time()
     verbose("%s\nHitting database %s %s as mgd_public\n" % \
                                         (time.ctime(), args.host, args.db,))
     # Build sql
-    q = """
-    -- select TP's: originally routed, and selected by curators
-    select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
-        st.term "GXD status", 'TP' "orig TP/FP", b.journal
-    from bib_refs b join bib_workflow_status s
-        on (b._refs_key = s._refs_key and s.iscurrent =1
-            and s._group_key = 31576665) -- current GXD status
-    join bib_workflow_status s2 on (b._refs_key = s2._refs_key
-        and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
-    join bib_workflow_relevance r on (b._refs_key = r._refs_key
-        and r._createdby_key = 1617) -- relevance_classifier
-    join acc_accession a on (b._refs_key = a._object_key
-        and a._mgitype_key = 1 and a._logicaldb_key = 1
-        and a.prefixpart = 'MGI:')
-    join voc_term st on (s._status_key = st._term_key)
-    join voc_term s2t on (s2._status_key = s2t._term_key)
-    join voc_term rt on (r._relevance_key = rt._term_key)
-    where
-    b.isreviewarticle = 0
-    and s2._status_key = 31576670 -- routed
-    and s._status_key in (31576671, 31576673, 31576674) -- chosen, indexed, full-coded
-    union
-    -- select FP's: originally routed, but rejected by curators
-    select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
-        st.term "GXD status", 'FP' "orig TP/FP", b.journal
-    from bib_refs b join bib_workflow_status s
-        on (b._refs_key = s._refs_key and s.iscurrent =1
-            and s._group_key = 31576665) -- current GXD status
-    join bib_workflow_status s2 on (b._refs_key = s2._refs_key
-        and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
-    join bib_workflow_relevance r on (b._refs_key = r._refs_key
-        and r._createdby_key = 1617) -- relevance_classifier
-    join acc_accession a on (b._refs_key = a._object_key
-        and a._mgitype_key = 1 and a._logicaldb_key = 1
-        and a.prefixpart = 'MGI:')
-    join voc_term st on (s._status_key = st._term_key)
-    join voc_term s2t on (s2._status_key = s2t._term_key)
-    join voc_term rt on (r._relevance_key = rt._term_key)
-    where
-    b.isreviewarticle = 0
-    and s2._status_key = 31576670 -- routed
-    and s._status_key in (31576672) -- Rejected
-    """
-    q = """
-   -- select refs originally not routed (no "embryo").
-   -- Just keepers and after June 1 2021 for not
-   select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
-            st.term "GXD status", 'NE' "orig TP/FP", b.journal
-    from bib_refs b join bib_workflow_status s
-        on (b._refs_key = s._refs_key and s.iscurrent =1
-            and s._group_key = 31576665) -- current GXD status
-    join bib_workflow_status s2 on (b._refs_key = s2._refs_key
-        and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
-    join bib_workflow_relevance r on (b._refs_key = r._refs_key
-        and r._createdby_key = 1617) -- relevance_classifier
-    join acc_accession a on (b._refs_key = a._object_key
-        and a._mgitype_key = 1 and a._logicaldb_key = 1
-        and a.prefixpart = 'MGI:')
-    join voc_term st on (s._status_key = st._term_key)
-    join voc_term s2t on (s2._status_key = s2t._term_key)
-    join voc_term rt on (r._relevance_key = rt._term_key)
-    where
-    b.isreviewarticle = 0
-    and s2._status_key = 31576669 -- not routed
-    and rt.term = 'keep'
-    and b.creation_date > '6/1/2021'
-    """
     if args.nResults != 0:
         limitClause = 'limit %d\n' % args.nResults
-        q += limitClause
+        sql += limitClause
 
     outputSampleSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
 
-    results = db.sql(q, 'auto')
+    results = db.sql(sql, 'auto')
 
     for i,r in enumerate(results):
         if i % 200 == 0: verbose("..%d" % i)
@@ -185,10 +216,13 @@ def doSamples():
     outputSampleSet.setMetaItem('time', time.strftime("%Y/%m/%d-%H:%M:%S"))
 
     # Write output
-    outputSampleSet.write(sys.stdout)
+    if args.outFile == '-': outFile = sys.stdout
+    else: outFile = args.outFile
+    outputSampleSet.write(outFile)
 
     verbose('\n')
-    verbose("wrote %d samples:\n" % outputSampleSet.getNumSamples())
+    verbose("wrote %d samples to '%s'\n" % (outputSampleSet.getNumSamples(),
+                                            args.outFile))
     verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
 
     return
@@ -209,7 +243,8 @@ def sqlRecord2ClassifiedSample(r,               # sql Result record
     elif r['GXD status'] in ['Chosen', 'Indexed', 'Full-coded']:
         knownClassName = 'Yes'
     elif r['GXD status'] == 'Not Routed':
-        knownClassName = 'No'
+        knownClassName = 'No'   # if not routed, don't really know its class
+                                # ..but we need to pick one
     else:
         raise ValueError("Invalid GXD status '%s'\n" % r['GXD status'])
 
@@ -299,7 +334,9 @@ def main():
     db.set_sqlPassword("mgdpub")
 
     if   args.option == 'test':    doAutomatedTests()
-    elif args.option == 'samples': doSamples()
+    elif args.option == 'routed':           doSamples(SQL_routed)
+    elif args.option == 'notRoutedKeep':    doSamples(SQL_notRoutedKeep)
+    elif args.option == 'notRoutedDiscard': doSamples(SQL_notRoutedDiscard)
     else: sys.stderr.write("invalid option: '%s'\n" % args.option)
 
     exit(0)
