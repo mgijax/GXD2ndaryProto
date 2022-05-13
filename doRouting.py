@@ -250,9 +250,10 @@ class GXDrouter (object):
                 'knock in',     # Connie didn't include this
                 'knock-in',
                 'lacz',
-                'mount',
+                ' mount',
                 'mrna level',
                 'northern',
+                'pcr',
                 'reporter',
                 'rnascope',
                 'section',
