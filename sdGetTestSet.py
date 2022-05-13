@@ -136,6 +136,30 @@ def doSamples():
     and s2._status_key = 31576670 -- routed
     and s._status_key in (31576672) -- Rejected
     """
+    q = """
+   -- select refs originally not routed (no "embryo").
+   -- Just keepers and after June 1 2021 for not
+   select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
+            st.term "GXD status", 'NE' "orig TP/FP", b.journal
+    from bib_refs b join bib_workflow_status s
+        on (b._refs_key = s._refs_key and s.iscurrent =1
+            and s._group_key = 31576665) -- current GXD status
+    join bib_workflow_status s2 on (b._refs_key = s2._refs_key
+        and s2._group_key = 31576665 and s2._createdby_key = 1618) -- 2nd triage
+    join bib_workflow_relevance r on (b._refs_key = r._refs_key
+        and r._createdby_key = 1617) -- relevance_classifier
+    join acc_accession a on (b._refs_key = a._object_key
+        and a._mgitype_key = 1 and a._logicaldb_key = 1
+        and a.prefixpart = 'MGI:')
+    join voc_term st on (s._status_key = st._term_key)
+    join voc_term s2t on (s2._status_key = s2t._term_key)
+    join voc_term rt on (r._relevance_key = rt._term_key)
+    where
+    b.isreviewarticle = 0
+    and s2._status_key = 31576669 -- not routed
+    and rt.term = 'keep'
+    and b.creation_date > '6/1/2021'
+    """
     if args.nResults != 0:
         limitClause = 'limit %d\n' % args.nResults
         q += limitClause
@@ -184,6 +208,8 @@ def sqlRecord2ClassifiedSample(r,               # sql Result record
         knownClassName = 'No'
     elif r['GXD status'] in ['Chosen', 'Indexed', 'Full-coded']:
         knownClassName = 'Yes'
+    elif r['GXD status'] == 'Not Routed':
+        knownClassName = 'No'
     else:
         raise ValueError("Invalid GXD status '%s'\n" % r['GXD status'])
 
