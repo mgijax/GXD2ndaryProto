@@ -96,6 +96,8 @@ args.matchesFilename  = "%sMatches.txt" % args.baseName
 args.summaryFilename  = "%sSummary.txt" % args.baseName
 
 SKIPJOURNALFILENAME='/Users/jak/work/GXD2ndaryProto/skipJournals.txt'
+CAT2TERMFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Terms.txt'
+CAT2EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Exclude.txt'
 
 #-----------------------------------
 class GXDrouter (object):
@@ -267,10 +269,13 @@ class GXDrouter (object):
     #cat2Terms = ['__mouse_age']
     # Not using the x.upper() right now as we are not replacing these terms
     cat2TermsDict = {x.lower() : x.upper() for x in cat2Terms}
+    cat2Exclude = []
+    cat2ExcludeDict = {}
 
     def __init__(self, numChars=20):
         self.numChars = numChars  # num of chars of surrounding context to keep
         self.skipJournals = { line[:-1] for line in open(SKIPJOURNALFILENAME, 'r') }
+
 
     def getExplanation(self):
         output = ''
@@ -284,6 +289,10 @@ class GXDrouter (object):
 
         output += 'Category1 Exclude terms:\n'
         for t in sorted(self.cat1ExcludeDict.keys()):
+            output += "\t'%s'\n" % t
+
+        output += 'Category2 Exclude terms:\n'
+        for t in sorted(self.cat2ExcludeDict.keys()):
             output += "\t'%s'\n" % t
 
         output += 'Route=No for these journals:\n'
@@ -362,8 +371,10 @@ class GXDrouter (object):
 
         cat2MaCounts = {'total': 0}        # { 'matched term': count }
         cat2MaContexts = {}                # { 'matched term': [ (pre, post) ] }
+        cat2ExcludeMaCounts = {'total': 0} # { 'matched term': count }
 
         self.cat1ExcludeMaCounts = cat1ExcludeMaCounts
+        self.cat2ExcludeMaCounts = cat1ExcludeMaCounts
 
         self.cat1MaCounts = cat1MaCounts
         self.cat1MaContexts = cat1MaContexts
@@ -438,7 +449,110 @@ class GXDrouter (object):
 
     def getCat2MaCounts(self): return self.cat2MaCounts
     def getCat2MaContexts(self): return self.cat2MaContexts
+    def getCat2ExcludeMaCounts(self): return self.cat2ExcludeMaCounts
 #-----------------------------------
+
+class GXDrouter_cat2Exclude (GXDrouter):
+    cat1Terms = ['__mouse_age']
+    # Not using the x.upper() right now as we are not replacing these terms
+    cat1TermsDict = {x.lower() : x.upper() for x in cat1Terms}
+
+    def __init__(self, numChars=20):
+        super().__init__(numChars=numChars)
+        self.getCat2FromFiles()
+
+    def getCat2FromFiles(self):
+        self.cat2Terms = []
+        self.cat2TermsDict = {}
+        for line in open(CAT2TERMFILENAME, 'r'):
+            if line.startswith('#') or line.strip() == '': continue
+            term = line[:-1]
+            self.cat2Terms.append(term)
+            self.cat2TermsDict[term.lower()] = term.upper()
+
+        self.cat2Exclude = []
+        self.cat2ExcludeDict = {}
+        for line in open(CAT2EXCLUDEFILENAME, 'r'):
+            if line.startswith('#') or line.strip() == '': continue
+            term = line[:-1]
+            self.cat2Exclude.append(term)
+            self.cat2ExcludeDict[term.lower()] = term.upper()
+
+    def getExplanation(self):
+        output = ''
+        output += 'Category1 terms in figtext:\n'
+        for t in sorted(self.cat1TermsDict.keys()):
+            output += "\t'%s'\n" % t
+
+        output += 'Category2 terms in figtext:\n'
+        for t in sorted(self.cat2TermsDict.keys()):
+            output += "\t'%s'\n" % t
+
+        output += 'Category2 Exclude terms:\n'
+        for t in sorted(self.cat2ExcludeDict.keys()):
+            output += "\t'%s'\n" % t
+
+        output += 'Route=No for these journals:\n'
+        for t in sorted(self.skipJournals):
+            output += "\t'%s'\n" % t
+
+        output += '-' * 50 + '\n'
+        return output
+
+    def routeThisRef(self, ref):
+        """ Given a reference (ClassifiedRefSample), return "Yes" or "No"
+            Just use the text from each reference as is in the dataset,
+                it is either all figure text or all full text
+        """
+        cat1MaCounts = {'total': 0}        # { 'matched term': count }
+        cat1MaContexts = {}                # { 'matched term': [ (pre, post) ] }
+
+        cat1ExcludeMaCounts = {'total': 0} # { 'matched term': count }
+
+        cat2MaCounts = {'total': 0}        # { 'matched term': count }
+        cat2MaContexts = {}                # { 'matched term': [ (pre, post) ] }
+
+        cat2ExcludeMaCounts = {'total': 0} # { 'matched term': count }
+
+        self.cat1ExcludeMaCounts = cat1ExcludeMaCounts
+        self.cat2ExcludeMaCounts = cat2ExcludeMaCounts
+
+        self.cat1MaCounts = cat1MaCounts
+        self.cat1MaContexts = cat1MaContexts
+
+        self.cat2MaCounts = cat2MaCounts
+        self.cat2MaContexts = cat2MaContexts
+
+        if ref.getField('journal') in self.skipJournals:
+            return 'No'
+
+        routing = "No"  # default routing (until we find matches)
+        text = ref.getDocument()
+
+        # go through text, replacing any cat2Exclude terms
+        newText = text.replace('\n', ' ')
+        for term, replacement in self.cat2ExcludeDict.items():
+            splits = newText.split(term)
+            newText = replacement.join(splits)
+            # update counts for this term
+            numMatches = (len(splits) -1)
+            if numMatches:
+                cat2ExcludeMaCounts[term] = numMatches
+                cat2ExcludeMaCounts['total'] += numMatches
+
+        # get cat1Term matches
+        self.getPositiveMatches(newText, self.cat1TermsDict.keys(),
+                                                cat1MaCounts, cat1MaContexts)
+
+        # get cat2 matches
+        self.getPositiveMatches(newText, self.cat2TermsDict.keys(),
+                                                cat2MaCounts, cat2MaContexts)
+        # determine routing
+        if cat1MaCounts['total'] and cat2MaCounts['total']:
+            routing = "Yes"
+
+        return routing
+# end GXDrouter_cat2Exclude -----------------------------------
 
 FIELDSEP = '|'
 routingHdr = FIELDSEP.join(['ID',
@@ -448,10 +562,11 @@ routingHdr = FIELDSEP.join(['ID',
                     'Cat1 matches',
                     'Cat1 Exclude matches',
                     'Cat2 matches',
+                    'Cat2 Exclude matches',
                     ] + sampleObjType.getExtraInfoFieldNames()) + '\n'
 
 def formatRouting(r, routing, predType, numCat1Matches, numCat1ExcludeMatches,
-                numCat2Matches):
+                numCat2Matches, numCat2ExcludeMatches):
     t = FIELDSEP.join([r.getID(),
                     r.getKnownClassName(),
                     routing,
@@ -459,6 +574,7 @@ def formatRouting(r, routing, predType, numCat1Matches, numCat1ExcludeMatches,
                     str(numCat1Matches),
                     str(numCat1ExcludeMatches),
                     str(numCat2Matches),
+                    str(numCat2ExcludeMatches),
                     ] + r.getExtraInfo()) + '\n'
     return t
 
@@ -508,6 +624,7 @@ def process():
     timeString = time.ctime()
     verbose(timeString + '\n')
     gxdRouter = GXDrouter(numChars=30)
+    #gxdRouter = GXDrouter_cat2Exclude(numChars=30)
 
     # get testSet from stdin
     testSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
@@ -543,6 +660,7 @@ def process():
         numCat1Matches = gxdRouter.getCat1MaCounts()['total']
         numCat1ExcludeMatches = gxdRouter.getCat1ExcludeMaCounts()['total']
         numCat2Matches = gxdRouter.getCat2MaCounts()['total']
+        numCat2ExcludeMatches = gxdRouter.getCat2ExcludeMaCounts()['total']
 
         predType = predictionType(ref.getKnownClassName(), routing,
                                                         positiveClass='Yes')
@@ -557,12 +675,13 @@ def process():
         numProcessed += 1
 
         r = formatRouting(ref, routing, predType, numCat1Matches,
-                                        numCat1ExcludeMatches, numCat2Matches)
+                numCat1ExcludeMatches, numCat2Matches, numCat2ExcludeMatches,)
         routingsFile.write(r)
 
         matchReport = formatMatches(gxdRouter.getCat1MaContexts())
         matchReport += formatMatches(gxdRouter.getCat2MaContexts())
         excludeReport = formatExcludes(gxdRouter.getCat1ExcludeMaCounts())
+        excludeReport += formatExcludes(gxdRouter.getCat2ExcludeMaCounts())
         detailsFile.write(r)
         detailsFile.write(matchReport)
         detailsFile.write(excludeReport)
