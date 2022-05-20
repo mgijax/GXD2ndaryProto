@@ -16,16 +16,40 @@ figConverterLegCloseWords50 = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
                                             numWords=50)
 #-----------------------------------
-#CONTEXT = 30
-CONTEXT = 0
+# Options for controlling the Age TextMapping reporting
+REPORTBYREFERENCE = True       # True = report transformations by reference
+                                # False= aggregate across whole corpus
+REPORTFIXTRANSFORMS = False     # T/F report "fix" transformations
+                                # (only applies if REPORTBYREFERENCE==True)
+CONTEXT = 30
+#CONTEXT = 0
+
 AgeMappings = [
-    TextMapping('fix1',         # correct any F I G U R E n so it doesn't
-                                # look like embryonic day "E n"
-        r'\b(?:' + figureText.spacedOutRegex('figure') +
-        r')\b', 'figure', context=0),
-    TextMapping('fix2',         # same thing for T A B L E
-        r'\b(?:' + figureText.spacedOutRegex('table') +
-        r')\b', 'table', context=0),
+    # Fix mappings: detect weird usages that would erroneously be mapped
+    #  to mouse_age
+    # by putting these "fix" mappings, 1st, if they match, none of the later
+    # mappings will match (1st match wins), even if these don't change the text
+    TextMapping('fix1',       # correct 'F I G U R E n' so it doesn't
+                              # look like embryonic day "E n". "T A B L E" too
+        r'\b(?:' +
+            figureText.spacedOutRegex('figure') +
+            r'|' + figureText.spacedOutRegex('table') +
+        r')\b', lambda x: ''.join(x.split()), # funct to squeeze out spaces
+        context=0),
+    TextMapping('fix2',       # detect figure|table En (En is fig num)
+                              # so En is not treated as eday
+        r'\b(?:' +
+            r'(?:figures?|fig[.]?|tables?) e\d' +
+        r')', lambda x: x,
+        context=10),
+    #TextMapping('fix3',       # so we don't match "injected ... blastocyst"
+    #    r'(?:' +
+    #        r'(?:(?:(?<!non-|not )inject)(?:\S|[ ]){1,25}?blastocysts?)' +
+    #        r'|(?:blastocysts?(?:\S|[ ]){1,25}?inject)' +
+    #    r')', lambda x: x,
+    #    context=20),
+
+    # Real age mappings
     TextMapping('eday',
         # E1 E2 E3 are rarely used & often mean other things
         # E14 is often a cell line, not an age
@@ -51,7 +75,9 @@ AgeMappings = [
         #r')\b', '__dpc', context=CONTEXT),
     TextMapping('ts',
         r'\b(?:' +
-            r'theiler\sstages?|TS(?:\s|-)?\d\d?' +
+            r'theiler\sstages?' +
+            r'|TS(?:\s|-)?[7-9]' +  # 1 digit, 0-6 not used or are other things
+            r'|TS(?:\s|-)?[12]\d' +   # 2 digits
         r')\b', '__mouse_age', context=CONTEXT),
         #r')\b', '__ts', context=CONTEXT),
     TextMapping('ee',   # early embryo terms
@@ -79,15 +105,10 @@ AgeMappings = [
         #r')\b', '__developmental', context=CONTEXT),
     TextMapping('fetus',   # fetus terms
         r'\b(?:' +
-            r'fetus|fetuses|fetal|foetal' +
+            r'fetus|fetuses' +
+            r'|(?:fetal|foetal)(?!\s+(?:bovine|calf)\s+serum)' +
         r')\b', '__mouse_age', context=CONTEXT),
         #r')\b', '__fetus_al', context=CONTEXT),
-#    TextMapping('postnatal',    # 11/1/2021: leave Pnn out of mapping, these
-#                                #   are often gene symbols or cell lines
-#        r'\b(?:' +
-#            r'postnatal|neonatal|new(?:\s|-)?borns?|adults?|ages?' +
-#            #r'|P\d\d?' +  # note this matches P53 P63 P73 - common gene syn's
-#        r')\b', '__mouse_age', context=CONTEXT),
     ]
 
 textTransformer_age = TextTransformer(AgeMappings)
@@ -117,21 +138,31 @@ class RefSample (BaseSample):
     recordEnd = RECORDEND
     preprocessorsToReport = set()  # set of objects w/ a getReports() method
                                    #   to include in getPreprocessorReport()
+    ageMatchReport = ''         # string w/ transformed age matches.
+                                #  1 line per Reference per transformation
 
     # ---------------------------
-    @classmethod
-    def addPreprocessorToReport(cls, processor):
-        cls.preprocessorsToReport.add(processor)
+    #@classmethod
+    #def addPreprocessorToReport(cls, processor):
+    #    cls.preprocessorsToReport.add(processor)
 
     @classmethod
     def getPreprocessorReport(cls):
         """ Return report text from preprocessor objects
         """
-        text = ''
-        for p in cls.preprocessorsToReport:
-            text += p.getReport() + '\n'
-        return text
+        # Age TextMapping report
+        if REPORTBYREFERENCE:
+            hdr = '\t'.join(['ID', 'category', 'replacement', 'count',
+                                'preText', 'matchedText', 'postText']) + '\n'
+            output = hdr + cls.ageMatchReport
+        else:   # get std report with counts across the whole corpus
+            output = textTransformer_age.getReport()
 
+        return output
+
+    @classmethod
+    def addToAgeMatchReport(cls, ID, line):
+        cls.ageMatchReport += ID + '\t' + line + '\n'
     #----------------------
     # "preprocessor" functions.
     #  Each preprocessor should modify this sample and return itself
@@ -159,12 +190,22 @@ class RefSample (BaseSample):
     # ---------------------------
 
     def textTransform_age(self):                # preprocessor
-        '''
-        Apply text transformations
+        ''' Apply age text transformations
         '''
         tt = textTransformer_age
-        self.addPreprocessorToReport(tt)
         self.setField('text', tt.transformText(self.getField('text')))
+
+        if REPORTBYREFERENCE:
+            # get textTransformer report lines for this ref,
+            # add ref ID to each line and save these to cls.matchReport
+            lines = tt.getReport().split('\n')
+
+            for line in lines[1:]:  # add ref ID to the match report lines
+                if line.strip() != '' and \
+                    (REPORTFIXTRANSFORMS or not line.startswith('fix')):
+                    self.addToAgeMatchReport(self.getID(), line)
+
+            tt.resetMatches()       # clear the transformer matches for next ref
         return self
     # ---------------------------
 # end class RefSample ------------------------
