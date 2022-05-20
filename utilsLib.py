@@ -80,51 +80,71 @@ def tokenPerLine(text):
 
 class TextMapping (object):
     """
-    IS: a named mapping between a regex and the text that should replace
-        any text that matches the regex.
-    DOES: keeps track of the text strings that were replaced
+    IS: A named mapping between a regex and some text that should replace
+            any text that matches the regex.
+        The replacement text can be a constant string
+        OR be a function that takes the matching text (string) as an argument
+            and returns the replacement string for that text.
+    DOES: Computes replacement strings for a given matching text.
+          Keeps track of the strings that were matched & replaced (matchRcds)
+            so you can get a report of what matched.
     """
     def __init__(self, name, regex, replacement, context=0):
         self.name = name
         self.regex = regex
         self.replacement = replacement
-        self.context = context  # num of chars around the matching string to
-                                #   keep when recording matches to this mapping
+        self.numChars = context  # num of chars around the matching text to
+                                 #   keep when recording matches to this mapping
         self.resetMatches()
 
     def resetMatches(self):
-        self.matches = {}       # {'matching text string': count}
-
-    def wasMatched(self, text, start, end):
-        """ Register the fact that text[start:end] was matched/replaced by this
-            TextMapping
+        """ Initialize the matchRcds, forgetting any rcds we already have.
         """
-        # Determine the matching text
-        if self.context:        # record n chars around the matching text
-            preText  = text[max(0, start-self.context) : start]
-            postText = text[end : end+self.context]
-            matchingText = "%s|%s|%s" % (preText, text[start:end], postText)
-        else:                   # just the matching text
-            matchingText = text[start:end]
+        self.matchRcds = {}
+
+    def getMatchRcds(self):
+        """ matchRcds is a dict:
+            {('matching text', postText, preText, replacement text): count}
+            (this field order is intentional. When you sort these keys,
+            identical match text sorts together with similar postText close
+            together)
+        """
+        return self.matchRcds
+
+    def foundMatch(self, text, start, end):
+        """ Process the fact that text[start:end] matched this TextMapping.
+            Register the match and
+            Return the string that should replace text[start:end].
+        """
+        matchText = text[start:end]
+
+        if type(self.replacement) == type(''): # constant replacement string
+            replacement = self.replacement
+        else:                                  # function to call
+            replacement = self.replacement(matchText)
+            
+        # get n chars around the matching text
+        preText  = text[max(0, start-self.numChars) : start]
+        postText = text[end : end+self.numChars]
 
         # Update the count for this matching text
-        self.matches[matchingText] = self.matches.get(matchingText, 0) + 1
+        myKey = (matchText, postText, preText, replacement)
+        self.matchRcds[myKey] = self.matchRcds.get(myKey, 0) + 1
 
-    def getMatches(self): return self.matches
+        return replacement
+
 # end class TextMapping -----------------------------------
 
 class TextMappingFromStrings (TextMapping):
     """
     IS: A TextMapping that is built from a set of strings. 
-        The strings may be read in from a file.
     """
     def __init__(self, name, strings, replacement, context=0):
         regex = self._buildRegex(strings)
         super().__init__(name, regex, replacement, context=context)
 
     def _buildRegex(self, strings):
-        """
-        Return a regex string that matches the list of strings
+        """ Return a regex string that matches the list of strings
         """
         regexes = [ self._str2regex(s) for s in strings ]
         return '|'.join(regexes)
@@ -142,6 +162,8 @@ class TextMappingFromFile (TextMappingFromStrings):
     """
     IS: A TextMappingFromStrings that is built from a set of strings read in
         from a file.
+        'inFile' is either an open filepointer to read from
+        or a filename (string)
     """
     def __init__(self, name, inFile, replacement, context=0):
 
@@ -196,21 +218,42 @@ class TextTransformer (object):
         The idea is to make one honking regex from all the TextMappings so all
         the TextMappings can be applied in one pass through any text for
         efficiency.
-    HAS: bunch of TextMappings
-    DOES: apply the TextMappings to one or more strings,
-          get reports back about what TextMappings where applied, where,
-          how often, etc.
+    HAS: list of TextMappings
+         Order is important. If two TextMappings match the same text, the
+             1st one wins and the second is not matched/applied
+    DOES: Apply the TextMappings to strings.
+          Get reports back about what TextMappings where applied, where,
+              how often, etc.
+    EXAMPLE:
+    # from utilsLib import TextMapping, TextTransformer
+    # mappings = [ # context=5: report 5 chars of context around matches, dflt=0
+    #     TextMapping('this2that', r'\bthis\b', 'that', context=5),
+    #     TextMapping('upperFIG', r'\bfigure|fig\b', lambda x: x.upper()),
+    #     ]              
+    # tt = TextTransformer(mappings)
+    #
+    # for s in [list of strings...]:
+    #     transformed_s = tt.transformText(s)
+    #     doSomethingWith(transformed_s)
+    #
+    # print(tt.getReport())       # report of matches aggregated across all
+    #
+    ##  Or get report of matches for each string:
+    # for i,s in enumerate([list of strings...]):
+    #     transformed_s = tt.transformText(s)
+    #     print("Matches For String %d\n" % i)
+    #     print(tt.getReport())       # report of matches for this string
+    #     tt.resetMatches()
     """
     def __init__(self, mappings,        # list of TextMappings w/ distinct names
                 reFlags=re.IGNORECASE,  # default is to ignore case in matches
                 ):
-        """
-        Assumes all the TextMappings have unique names that don't contain
+        """ Assumes all the TextMappings have unique names that don't contain
             "<" or ">"
         """
         self.reFlags = reFlags
         self.mappings = mappings                    # the list of mappings
-        self.mappingDict = self._buildMappingDict() # dict of mappings
+        self.mappingDict = self._buildMappingDict() # {name : mapping obj}
         self.resetMatches()
         self.bigRegex = None
         self.bigRe = None
@@ -241,32 +284,6 @@ class TextTransformer (object):
     def getBigRegex(self): return self.bigRegex
     def getBigRe(self):    return self.bigRe
 
-    def getMatches(self):
-        """ Return the text matches/transformations applied so far by this
-            TextTransformer.
-            I.e., a list of triples:
-                (mapping name, {'matching text':count}, replacement str)
-        """
-        matches = []
-        for k in sorted(self.mappingDict.keys()):
-            mapping = self.mappingDict[k]
-            if mapping.getMatches():
-                matches.append((k, mapping.getMatches(), mapping.replacement))
-
-        return matches
-
-    def getReport(self, title="Text Transformation Report"):
-        """ Return a string: nicely formatted matches report"""
-        output = title + "\n"
-
-        for match in self.getMatches():
-            name, matches, replacement = match
-            for k in sorted(matches.keys()):
-                text = k.replace('\n', '\\n').replace('\t', '\\t')
-                output += "%s\t'%s'\t%d\t'%s'\n" % \
-                                    (name, replacement, matches[k], text,)
-        return output
-
     def transformText(self, text):
         """ Apply the mappings to the text. Return the transformed text
         """
@@ -274,14 +291,52 @@ class TextTransformer (object):
         endOfLastMatch = 0      # end position in text of the last match
                                 #  processed so far
         for m in self.bigRe.finditer(text):
-            key, start, end = findMatchingGroup(m)
-            self.mappingDict[key].wasMatched(text, start, end)
-            replacement = self.mappingDict[key].replacement
+            name, start, end = findMatchingGroup(m)
+            replacement = self.mappingDict[name].foundMatch(text, start, end)
             transformed += text[endOfLastMatch:start] + replacement
             endOfLastMatch = end
 
         transformed += text[endOfLastMatch:]
         return transformed
+
+    def getMatches(self):
+        """ Return the text matches/transformations applied so far by this
+            TextTransformer.
+            I.e., a list of pairs.
+                (mapping name, dict of match records (see TextMapping))
+        """
+        matches = []
+        for k in sorted(self.mappingDict.keys()):
+            mapping = self.mappingDict[k]
+            if mapping.getMatchRcds():
+                matches.append((k, mapping.getMatchRcds()))
+
+        return matches
+
+    def getReport(self, title="Text Transformation Report"):
+        """ Return a string: nicely formatted matches report
+            Tab delimited lines:
+            mapping_name, replacedText, count, preText, matchingText, postText
+            (count = number of occurances of
+                preText matchingText postText -> preText replacedText postText)
+        """
+        output = title + "\n"
+
+        for (name, matchRcds) in self.getMatches():
+            for k in sorted(matchRcds.keys()):
+                numMatches = matchRcds[k]
+                (mText, postText, preText, repText) = k
+                mText    = mText.replace('\n', '\\n').replace('\t', '\\t')
+                postText = postText.replace('\n', '\\n').replace('\t', '\\t')
+                preText  = preText.replace('\n', '\\n').replace('\t', '\\t')
+                repText  = repText.replace('\n', '\\n').replace('\t', '\\t')
+                line = '\t'.join([name, "'%s'" % repText, str(numMatches),
+                                        "'%s'" % preText,
+                                        "'%s'" % mText,
+                                        "'%s'" % postText,
+                                        ])
+                output += line + '\n'
+        return output
 
     def resetMatches(self):
         """ Clear the matches seen so far by this TextTransformer
