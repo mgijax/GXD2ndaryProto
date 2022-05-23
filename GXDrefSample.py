@@ -29,6 +29,14 @@ AgeMappings = [
     #  to mouse_age
     # by putting these "fix" mappings, 1st, if they match, none of the later
     # mappings will match (1st match wins), even if these don't change the text
+    # BUT be careful about the order of these.
+    # If two can overlap in their matching text, only the first one is applied.
+    TextMapping('fix2',       # detect figure|table En (En is fig num)
+                              # so En is not treated as eday
+        r'\b(?:' +
+            r'(?:figures?|fig[.s]?|tables?) e\d' +
+        r')', lambda x: x,
+        context=10),
     TextMapping('fix1',       # correct 'F I G U R E n' so it doesn't
                               # look like embryonic day "E n". "T A B L E" too
         r'\b(?:' +
@@ -36,12 +44,6 @@ AgeMappings = [
             r'|' + figureText.spacedOutRegex('table') +
         r')\b', lambda x: ''.join(x.split()), # funct to squeeze out spaces
         context=0),
-    TextMapping('fix2',       # detect figure|table En (En is fig num)
-                              # so En is not treated as eday
-        r'\b(?:' +
-            r'(?:figures?|fig[.]?|tables?) e\d' +
-        r')', lambda x: x,
-        context=10),
     #TextMapping('fix3',       # so we don't match "injected ... blastocyst"
     #    r'(?:' +
     #        r'(?:(?:(?<!non-|not )inject)(?:\S|[ ]){1,25}?blastocysts?)' +
