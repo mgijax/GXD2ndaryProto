@@ -154,8 +154,12 @@ class RefSample (BaseSample):
         """
         # Age TextMapping report
         if REPORTBYREFERENCE:
-            hdr = '\t'.join(['ID', 'category', 'replacement', 'count',
-                                'preText', 'matchedText', 'postText']) + '\n'
+            # get header line from standard report
+            stdHdr = textTransformer_age.getReport().split('\n')[1]
+
+            # add ID column
+            cols = stdHdr.split('\t')
+            hdr = '\t'.join(['ID'] + cols)  + '\n'
             output = hdr + cls.ageMatchReport
         else:   # get std report with counts across the whole corpus
             output = textTransformer_age.getReport()
@@ -202,7 +206,7 @@ class RefSample (BaseSample):
             # add ref ID to each line and save these to cls.matchReport
             lines = tt.getReport().split('\n')
 
-            for line in lines[1:]:  # add ref ID to the match report lines
+            for line in lines[2:]:  # add ref ID to the match report lines
                 if line.strip() != '' and \
                     (REPORTFIXTRANSFORMS or not line.startswith('fix')):
                     self.addToAgeMatchReport(self.getID(), line)

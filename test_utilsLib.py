@@ -14,7 +14,7 @@ class TextTransformer_tests(unittest.TestCase):
     def setUp(self):
         self.THEmappings = [
             TextMapping('THE', r'\b(?:the)\b', 'the_'),
-            TextMapping('THESE', r'\b(?:these)\b', 'these_'),
+            TextMapping('THESE', r'\b(?:these)\b', 'these_', context=3),
         ]
 
     def test_distinctMappingNames(self):
@@ -54,31 +54,43 @@ class TextTransformer_tests(unittest.TestCase):
 
     def test_getMatches(self):
         t = TextTransformer(self.THEmappings)
-        text = "there are These things & these & these, and then the end"
+        text = "The start and These things"
         transformed = t.transformText(text)
-        matches = t.getMatches()
-        #print(matches)
-        self.assertEqual(matches[1][1][('these','','','these_')], 2)
-        self.assertEqual(matches[1][1][('These','','','these_')], 1)
 
+        matches = t.getMatches()
+        self.assertEqual(len(matches), 2)
+
+        m = matches[0]
+        self.assertEqual(m.mapName, 'THE')
+        self.assertEqual(m.matchText, 'The')
+        self.assertEqual(m.start, 0)
+        self.assertEqual(m.end, 3)
+        self.assertEqual(m.replText, 'the_')
+        self.assertEqual(m.preText, '')
+        self.assertEqual(m.postText, '')
+
+        m = matches[1]
+        self.assertEqual(m.mapName, 'THESE')
+        self.assertEqual(m.matchText, 'These')
+        self.assertEqual(m.preText, 'nd ')
+        self.assertEqual(m.postText, ' th')
+        
+        text = "there are These things & these & these, and then the end"
         transformed = t.transformText(text)             # should update counts
         matches = t.getMatches()
-        self.assertEqual(matches[1][1][('these','','','these_')], 4)
-        self.assertEqual(matches[1][1][('These','','','these_')], 2)
+        self.assertEqual(len(matches), 6)
 
     def test_resetMatches(self):
         t = TextTransformer(self.THEmappings)
         text = "there are These things & these & these, and then the end"
         transformed = t.transformText(text)
         matches = t.getMatches()
-        self.assertEqual(matches[1][1][('these','','','these_')], 2)
-        self.assertEqual(matches[1][1][('These','','','these_')], 1)
+        self.assertEqual(len(matches), 4)
 
         t.resetMatches()                                # should reset counts
         transformed = t.transformText(text)
         matches = t.getMatches()
-        self.assertEqual(matches[1][1][('these','','','these_')], 2)
-        self.assertEqual(matches[1][1][('These','','','these_')], 1)
+        self.assertEqual(len(matches), 4)
 
 # end class TextTransformer_tests
 ######################################

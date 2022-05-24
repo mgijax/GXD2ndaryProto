@@ -78,6 +78,19 @@ def tokenPerLine(text):
 # 'regex' = the text of a regular expression (as a string)
 # 're'    = a regular expression object from the re module
 
+class MatchRcd (object):
+    """ a structure to hold the details of a match to a TextMapping
+    """
+    def __init__(self, name, start, end, matchText, preText, postText,
+                        replText):
+        self.mapName   = name           # name of the  mapping
+        self.start     = start          # coord of the start of the match
+        self.end       = end            # end coord. text[start:end] = match txt
+        self.matchText = matchText      # the actual matched text
+        self.preText   = preText        # context chars before the match
+        self.postText  = postText       # context chars after the match
+        self.replText  = replText       # the string that replaced the match
+
 class TextMapping (object):
     """
     IS: A named mapping between a regex and some text that should replace
@@ -100,14 +113,10 @@ class TextMapping (object):
     def resetMatches(self):
         """ Initialize the matchRcds, forgetting any rcds we already have.
         """
-        self.matchRcds = {}
+        self.matchRcds = []
 
     def getMatchRcds(self):
-        """ matchRcds is a dict:
-            {('matching text', postText, preText, replacement text): count}
-            (this field order is intentional. When you sort these keys,
-            identical match text sorts together with similar postText close
-            together)
+        """ Return list of MatchRcds since the last self.resetMatches()
         """
         return self.matchRcds
 
@@ -123,13 +132,14 @@ class TextMapping (object):
         else:                                  # function to call
             replacement = self.replacement(matchText)
             
-        # get n chars around the matching text
+        # Get n chars around the matching text
         preText  = text[max(0, start-self.numChars) : start]
         postText = text[end : end+self.numChars]
 
-        # Update the count for this matching text
-        myKey = (matchText, postText, preText, replacement)
-        self.matchRcds[myKey] = self.matchRcds.get(myKey, 0) + 1
+        # Record the match
+        matchRcd = MatchRcd(self.name, start, end, matchText, preText,
+                                                    postText, replacement)
+        self.matchRcds.append(matchRcd)
 
         return replacement
 
@@ -300,42 +310,55 @@ class TextTransformer (object):
         return transformed
 
     def getMatches(self):
-        """ Return the text matches/transformations applied so far by this
+        """ Return list of MatchRcds for matches found so far by this 
             TextTransformer.
-            I.e., a list of pairs.
-                (mapping name, dict of match records (see TextMapping))
         """
         matches = []
-        for k in sorted(self.mappingDict.keys()):
-            mapping = self.mappingDict[k]
-            if mapping.getMatchRcds():
-                matches.append((k, mapping.getMatchRcds()))
-
+        for m in self.mappings:
+            matches.extend(m.getMatchRcds())
         return matches
 
     def getReport(self, title="Text Transformation Report"):
         """ Return a string: nicely formatted matches report
-            Tab delimited lines:
-            mapping_name, replacedText, count, preText, matchingText, postText
-            (count = number of occurances of
-                preText matchingText postText -> preText replacedText postText)
+            1st line: title
+            2nd line: column headers (tab delimited)
+            Tab delimited lines (sorted by mapName, matchText, postText):
+            mapName, replText, count, preText, matchText, postText
+            (count = number of occurrances of
+                preText matchText postText -> preText replText postText)
         """
         output = title + "\n"
+        output += '\t'.join(['mapName',        # header line
+                                'replText',
+                                'numMatches',
+                                'preText',
+                                'matchText',
+                                'postText',
+                                ]) + '\n'
 
-        for (name, matchRcds) in self.getMatches():
-            for k in sorted(matchRcds.keys()):
-                numMatches = matchRcds[k]
-                (mText, postText, preText, repText) = k
-                mText    = mText.replace('\n', '\\n').replace('\t', '\\t')
-                postText = postText.replace('\n', '\\n').replace('\t', '\\t')
-                preText  = preText.replace('\n', '\\n').replace('\t', '\\t')
-                repText  = repText.replace('\n', '\\n').replace('\t', '\\t')
-                line = '\t'.join([name, "'%s'" % repText, str(numMatches),
-                                        "'%s'" % preText,
-                                        "'%s'" % mText,
-                                        "'%s'" % postText,
-                                        ])
-                output += line + '\n'
+        # aggregate matches to counts
+        aggMatches = {}
+        for m in self.getMatches():
+                # order of these fields is intentional so matches sort nicely
+            myKey = (m.mapName, m.matchText, m.postText, m.preText, m.replText)
+            aggMatches[myKey] = aggMatches.get(myKey, 0) + 1
+
+        # generate output lines w/ counts.
+        for myKey in sorted(aggMatches.keys()):
+            numMatches = aggMatches[myKey]
+            (mapName, matchText, postText, preText, replText) = myKey
+            matchText = matchText.replace('\n', '\\n').replace('\t', '\\t')
+            postText  = postText.replace('\n', '\\n').replace('\t', '\\t')
+            preText   = preText.replace('\n', '\\n').replace('\t', '\\t')
+            replText  = replText.replace('\n', '\\n').replace('\t', '\\t')
+            line = '\t'.join([mapName,
+                                "'%s'" % replText,
+                                str(numMatches),
+                                "'%s'" % preText,
+                                "'%s'" % matchText,
+                                "'%s'" % postText,
+                                ])
+            output += line + '\n'
         return output
 
     def resetMatches(self):
