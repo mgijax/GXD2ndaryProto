@@ -55,39 +55,47 @@ AgeMappings = [
     TextMapping('eday',
         # E1 E2 E3 are rarely used & often mean other things
         # E14 is often a cell line, not an age
+        # Acceptable 2 decimal places:  .25 and .75 - regex: [.][27]5
+        # Acceptable 1 decimal place:   .0 and .5   - regex: [.][05]
         r'\b(?:' +
-            r'e\s?\d[.]\d\d?' +    # E single digit w/ decimal place or two
-            r'|e\s?1\d[.]\d\d?' +  # E double digit w/ decimal place or two
-            r'|e\s?[4-9]' +        # E single digit
-            r'|e\s1\d' +           # E (w/ space) double digits
-            r'|e1[012356789]' +    # E (no space) double digits - omit E14
-            r'|e\s?20' +           # E double digits
-            r'|embryonic\sdays?' + # spelled out, don't worry about numbers
+            r'embryonic\sdays?' + # spelled out, don't worry about numbers
             r'|[eg]d\s?\d' +       # ED or GD (embryonic|gestational)day+ 1 dig
             r'|[eg]d\s?1[0-9]' +   # ED or GD 2 digits: 10-19
             r'|[eg]d\s?20' +       # ED or GD 2 digits: 20
+
+            r'|(?<![-])(?:' +     # not preceded by '-'
+             r'e\d[.][27]5' +     # En  w/ 2 acceptable decimal places
+             r'|e1\d[.][27]5' +   # E1n w/ 2 acceptable decimal places
+             r'|e\s?\d[.][05]' +  # En or E n   w/ 1 acceptable dec place
+             r'|e\s?1\d[.][05]' + # E1n or E 1n w/ 1 acceptable dec place
+             r'|e\s?[4-9]' +      # E single digit
+             r'|e\s1\d' +         # E (w/ space) double digits
+             r'|e1[012356789]' +  # E (no space) double digits - omit E14
+             r'|e\s?20' +         # E double digits E20
+            r')(?![.]\d|[%]|-bp|-ml|-mg)' + # not followed by decimal or
+                                            #   % -bp -ml -mg
+
         r')\b', '__mouse_age', context=CONTEXT),
-        #r')\b', '__eday', context=CONTEXT),
+
     TextMapping('dpc',
         r'\b(?:' +
             r'days?\spost\s(?:conception|conceptus|coitum)' +
             r'|\d\d?dpc' +         # dpc w/ a digit or two before (no space)
             r'|dpc' +              # dpc as a word by itself
         r')\b', '__mouse_age', context=CONTEXT),
-        #r')\b', '__dpc', context=CONTEXT),
     TextMapping('ts',
         r'\b(?:' +
             r'theiler\sstages?' +
             r'|TS(?:\s|-)?[7-9]' +  # 1 digit, 0-6 not used or are other things
             r'|TS(?:\s|-)?[12]\d' +   # 2 digits
         r')\b', '__mouse_age', context=CONTEXT),
-        #r')\b', '__ts', context=CONTEXT),
     TextMapping('ee',   # early embryo terms
                         # mesenchymal mesenchymes? ?
         r'\b(?:' +
             r'blastocysts?|blastomeres?|headfold' +
             r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
-            r'|(?:(?:limb)(?:\s|-))?buds?' +
+            r'|(?:limb(?:\s|-)?)buds?' +    # bud w/ limb in front
+            r'|(?<!fin(?:\s|-))buds?' +     # bud w/o 'fin ' in front
             r'|(?:' +
                 r'(?:[1248]|one|two|four|eight)(?:\s|-)cell\s' +
                 r'(?:' +   # "embryo" or "stage" must come after [1248] cell
@@ -98,19 +106,16 @@ AgeMappings = [
                 r')' +
             r')' +
         r')\b', '__mouse_age', context=CONTEXT),
-        #r')\b', '__early_embryo', context=CONTEXT),
     TextMapping('developmental',   # "developmental" terms
         r'\b(?:' +
             r'developmental\sstages?' +
             r'|developmental\sages?' +
         r')\b', '__mouse_age', context=CONTEXT),
-        #r')\b', '__developmental', context=CONTEXT),
     TextMapping('fetus',   # fetus terms
         r'\b(?:' +
             r'fetus|fetuses' +
             r'|(?:fetal|foetal)(?!\s+(?:bovine|calf)\s+serum)' +
         r')\b', '__mouse_age', context=CONTEXT),
-        #r')\b', '__fetus_al', context=CONTEXT),
     ]
 
 textTransformer_age = TextTransformer(AgeMappings)
