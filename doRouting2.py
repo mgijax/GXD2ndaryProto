@@ -7,8 +7,8 @@
   
   Outputs: a file of Routing assignments, 1 line for each reference
            a file of "details" w/ a summary of what terms were searched for.
-           files of matches
-           a summary of Precision and Recall
+           files of matches (see Output filenames below)
+           a summary file of Precision and Recall
 
            You pass filename base prefix, e.g., 'Try1' as a cmd line param
            and the output files are named:
@@ -58,15 +58,19 @@ def getArgs():
 #-----------------------------------
 
 args = getArgs()
+
+# Output filenames
 args.routingsFilename  = "%sRoutings.txt" % args.baseName
-args.detailsFilename   = "%sDetails.txt" % args.baseName
+args.ExcludeMatchesFilename = "%sExcMatches.txt" % args.baseName
+args.AgeMatchesFilename = "%sAgeMatches.txt" % args.baseName
 args.TPmatchesFilename = "%sTPMatches.txt" % args.baseName
 args.FPmatchesFilename = "%sFPMatches.txt" % args.baseName
 args.TNmatchesFilename = "%sTNMatches.txt" % args.baseName
 args.FNmatchesFilename = "%sFNMatches.txt" % args.baseName
-args.ExcludeMatchesFilename = "%sExcMatches.txt" % args.baseName
+args.detailsFilename   = "%sDetails.txt" % args.baseName
 args.summaryFilename   = "%sSummary.txt" % args.baseName
 
+# Input files for various vocabs
 SKIPJOURNALFILENAME='/Users/jak/work/GXD2ndaryProto/skipJournals.txt'
 CAT1EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat1Exclude.txt'
 CAT2TERMFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Terms.txt'
@@ -375,6 +379,29 @@ def formatMatches(ID, routing, predType, goodJournal, numCat1Matches,
                    ]) + '\n'
     return output
 
+matchesNoCountsHdr = matchesFieldSep.join(['ID',
+                    'routing',
+                    'predType',
+                    'matchType',
+                    'preText',
+                    'matchText',
+                    'postText',
+                    ]) + '\n'
+
+def formatMatchesNoCounts(ID, routing, predType, matchRcds):
+    output = ''
+    for m in matchRcds:
+        output += matchesFieldSep.join([
+                   str(ID),
+                   routing,
+                   predType,
+                   m.matchType,
+                   "'%s'" % m.preText.replace('\n','\\n').replace('\t','\\t'),
+                   "'%s'" % m.matchText.replace('\n','\\n').replace('\t','\\t'),
+                   "'%s'" % m.postText.replace('\n','\\n').replace('\t','\\t'),
+                   ]) + '\n'
+    return output
+
 #-----------------------------------
 
 def process():
@@ -421,6 +448,10 @@ def process():
     excludeMatchesFile = open(args.ExcludeMatchesFilename, 'w')
     excludeMatchesFile.write(timeString + '\n')
     excludeMatchesFile.write(matchesHdr)
+
+    ageMatchesFile = open(args.AgeMatchesFilename, 'w')
+    ageMatchesFile.write(timeString + '\n')
+    ageMatchesFile.write(matchesNoCountsHdr)
 
     matchesFile = { 'TP': open(args.TPmatchesFilename, 'w'),
                     'FP': open(args.FPmatchesFilename, 'w'),
@@ -469,36 +500,42 @@ def process():
         numProcessed += 1
 
         goodJournal = gxdRouter.getGoodJournal()
+
+        # Routings file
         r = formatRouting(ref, routing, predType, goodJournal, 
                                             numCat1Matches, numCat1Excludes,
                                             numAgeMatches,  numAgeExcludes,
                                             numCat2Matches, numCat2Excludes,)
         routingsFile.write(r)
 
+        # Exclude matches file
         m = formatMatches(ref.getID(), routing, predType, goodJournal,
                     numCat1Matches, numAgeMatches, numCat2Matches,
                     gxdRouter.getExcludeMatches())
         excludeMatchesFile.write(m)
 
+        # Age match report, helpful for evaluating/debugging age mapping chgs
+        m = formatMatchesNoCounts(ref.getID(), routing, predType, 
+                    gxdRouter.getAgeMatches() + gxdRouter.getAgeExcludes())
+        ageMatchesFile.write(m)
+
+        # Match files broken down by prediction type (TP, FP, ...)
         m = formatMatches(ref.getID(), routing, predType, goodJournal,
                     numCat1Matches, numAgeMatches, numCat2Matches,
                     gxdRouter.getPosMatches())
         matchesFile[predType].write(m)
-
-        #matchReport = formatMatches(gxdRouter.getCat1MaContexts())
-        #matchReport += formatMatches(gxdRouter.getCat2MaContexts())
-        #excludeReport = formatExcludes(gxdRouter.getCat1ExcludeMaCounts())
-        #excludeReport += formatExcludes(gxdRouter.getCat2ExcludeMaCounts())
-        #detailsFile.write(r)
-        #detailsFile.write(matchReport)
-        #detailsFile.write(excludeReport)
-        #detailsFile.write('\n')
-
+        if predType == 'FN':    # report exclude matches for FN's
+                                #  to help understand why not routed
+            m = formatMatches(ref.getID(), routing, predType, goodJournal,
+                        numCat1Matches, numAgeMatches, numCat2Matches,
+                        gxdRouter.getExcludeMatches())
+            matchesFile[predType].write(m)
     # end routing loop
 
     routingsFile.close()
     detailsFile.close()
     excludeMatchesFile.close()
+    ageMatchesFile.close()
     for f in matchesFile.values():
         f.close()
 
