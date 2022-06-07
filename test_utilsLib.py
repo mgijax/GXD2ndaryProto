@@ -61,7 +61,7 @@ class TextTransformer_tests(unittest.TestCase):
         self.assertEqual(len(matches), 2)
 
         m = matches[0]
-        self.assertEqual(m.mapName, 'THE')
+        self.assertEqual(m.matchType, 'THE')
         self.assertEqual(m.matchText, 'The')
         self.assertEqual(m.start, 0)
         self.assertEqual(m.end, 3)
@@ -70,7 +70,7 @@ class TextTransformer_tests(unittest.TestCase):
         self.assertEqual(m.postText, '')
 
         m = matches[1]
-        self.assertEqual(m.mapName, 'THESE')
+        self.assertEqual(m.matchType, 'THESE')
         self.assertEqual(m.matchText, 'These')
         self.assertEqual(m.preText, 'nd ')
         self.assertEqual(m.postText, ' th')

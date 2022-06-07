@@ -79,11 +79,11 @@ def tokenPerLine(text):
 # 're'    = a regular expression object from the re module
 
 class MatchRcd (object):
-    """ a structure to hold the details of a match to a TextMapping
+    """ A structure to hold the details of a match to a TextMapping
     """
-    def __init__(self, name, start, end, matchText, preText, postText,
+    def __init__(self, matchType, start, end, matchText, preText, postText,
                         replText):
-        self.mapName   = name           # name of the  mapping
+        self.matchType = matchType      # typically the name of the  mapping
         self.start     = start          # coord of the start of the match
         self.end       = end            # end coord. text[start:end] = match txt
         self.matchText = matchText      # the actual matched text
@@ -322,13 +322,13 @@ class TextTransformer (object):
         """ Return a string: nicely formatted matches report
             1st line: title
             2nd line: column headers (tab delimited)
-            Tab delimited lines (sorted by mapName, matchText, postText):
-            mapName, replText, count, preText, matchText, postText
+            Tab delimited lines (sorted by matchType, matchText, postText):
+            matchType, replText, count, preText, matchText, postText
             (count = number of occurrances of
                 preText matchText postText -> preText replText postText)
         """
         output = title + "\n"
-        output += '\t'.join(['mapName',        # header line
+        output += '\t'.join(['matchType',        # header line
                                 'replText',
                                 'numMatches',
                                 'preText',
@@ -340,18 +340,19 @@ class TextTransformer (object):
         aggMatches = {}
         for m in self.getMatches():
                 # order of these fields is intentional so matches sort nicely
-            myKey = (m.mapName, m.matchText, m.postText, m.preText, m.replText)
+            myKey = (m.matchType, m.matchText, m.postText, m.preText,
+                                                                    m.replText)
             aggMatches[myKey] = aggMatches.get(myKey, 0) + 1
 
         # generate output lines w/ counts.
         for myKey in sorted(aggMatches.keys()):
             numMatches = aggMatches[myKey]
-            (mapName, matchText, postText, preText, replText) = myKey
+            (matchType, matchText, postText, preText, replText) = myKey
             matchText = matchText.replace('\n', '\\n').replace('\t', '\\t')
             postText  = postText.replace('\n', '\\n').replace('\t', '\\t')
             preText   = preText.replace('\n', '\\n').replace('\t', '\\t')
             replText  = replText.replace('\n', '\\n').replace('\t', '\\t')
-            line = '\t'.join([mapName,
+            line = '\t'.join([matchType,
                                 "'%s'" % replText,
                                 str(numMatches),
                                 "'%s'" % preText,
