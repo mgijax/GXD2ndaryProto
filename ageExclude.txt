@@ -1,0 +1,41 @@
+bovine
+chick
+chimaer
+chimer
+electroporat
+explant
+fetal death
+fetal dna
+fetal-like
+fetal survival
+fetal viability
+fetal weight
+human
+larvae
+monkey
+morpholino
+organoid
+porcine
+resorption
+transduct
+transfect
+transferred
+transplanted
+xenopus
+zebra
+# below: spaces before so they match only at the beginning of words
+ arrested
+ cultur
+ fin bud
+ infect
+ inject
+ microinject
+ treat
+ vitrifi
+ vitro
+# below: spaces before and after so they don't match parts of words
+ bat 
+ cat 
+ pig 
+ rat 
+ rats 

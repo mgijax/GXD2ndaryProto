@@ -75,6 +75,7 @@ SKIPJOURNALFILENAME='/Users/jak/work/GXD2ndaryProto/skipJournals.txt'
 CAT1EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat1Exclude.txt'
 CAT2TERMFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Terms.txt'
 CAT2EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Exclude.txt'
+AGEEXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/ageExclude.txt'
 
 
 class SimpleTextMappingFromStrings (TextMappingFromStrings):
@@ -93,6 +94,7 @@ class GXDrouter (object):
                 skipJournals,   # [journal names] whose articles don't route
                 cat1Terms,      # [category 1 terms]
                 cat1Exclude,    # [category 1 exclude terms]
+                ageExclude,     # [age exclude terms]
                 cat2Terms,      # [category 2 terms]
                 cat2Exclude,    # [category 2 exclude terms]
                 numChars=30,    # n chars on each side of a match to report
@@ -101,6 +103,7 @@ class GXDrouter (object):
         self.skipJournals = {j for j in skipJournals} # set of journal names
         self.cat1Terms    = cat1Terms
         self.cat1Exclude  = cat1Exclude
+        self.ageExclude   = ageExclude
         self.cat2Terms    = cat2Terms
         self.cat2Exclude  = cat2Exclude
 
@@ -167,16 +170,70 @@ class GXDrouter (object):
 
     def _buildMouseAgeDetection(self):
         self.ageTextTransformer = TextTransformer(SampleLib.AgeMappings)
+        self.ageExcludeDict = {x.lower() : x.upper() for x in self.ageExclude}
+            # re to detect strings that would prohibit an age exclude term
+            #   from causing the exclusion if they occur between
+            #   the exclude term and the matching age text:
+            #     '; ' or  '. ' or '\n\n' (paragraph boundary)
+        self.ageExcludeBlockRE = re.compile(r'[;.]\s|\n\n')
 
     def _gotMouseAge(self, text):
         """ Return True if we find mouse age terms in text
         """
         newText = self.ageTextTransformer.transformText(text)
-        ageMatches = self.ageTextTransformer.getMatches()
-        self.ageMatches = [m for m in ageMatches \
+
+        # get ageMatches and throw away "fix" matches
+        ageMatches = [ m for m in self.ageTextTransformer.getMatches()
                                         if not m.matchType.startswith('fix')] 
+
+        # check preText and postText to detect exclude age matches
+        for m in ageMatches:
+            if self._isGoodAgeMatch(m):
+                self.ageMatches.append(m)
+            else:
+                self.ageExcludes.append(m)
+
         self.ageTextTransformer.resetMatches()
         return len(self.ageMatches)
+
+    def _isGoodAgeMatch(self, m # MatchRcd
+                        ):
+        """ Return True if this looks like a good mouse age match.
+            If not a good mouse age, return False and:
+                Modify m.preText or m.postText to highlight the text that
+                    indicates it is not a good match,
+                Set m.matchType to 'excludeAge'
+        """
+        #return True
+        goodAgeMatch = True     # assume no exclusion terms detected
+
+        # search m.preText for age exclusion terms
+        newText, preTextMatches = findMatches(m.preText, self.ageExcludeDict,
+                                                                'excludeAge', 0)
+        for em in preTextMatches:       # for exclusion matches in preText
+            if not self.ageExcludeBlockRE.search(m.preText[em.end:]):
+                # no intervening text found that should block the exclude
+                newPreText = m.preText[:em.start] + em.replText + \
+                                                            m.preText[em.end:]
+                m.preText = newPreText
+                goodAgeMatch = False
+                break
+
+        # search m.postText for age exclusion terms
+        newText, postTextMatches = findMatches(m.postText, self.ageExcludeDict,
+                                                                'excludeAge', 0)
+        for em in postTextMatches:      # for exclusion matches in postText
+            if not self.ageExcludeBlockRE.search(m.postText[:em.start]):
+                # no intervening text found that should block the exclude
+                newPostText = m.postText[:em.start] + em.replText + \
+                                                            m.postText[em.end:]
+                m.postText = newPostText
+                goodAgeMatch = False
+                break
+
+        if not goodAgeMatch:
+            m.matchType = 'excludeAge'
+        return goodAgeMatch
     
     def routeThisRef(self, refID, text, journal):
         """ Given info about a reference, return "Yes" or "No"
@@ -236,6 +293,10 @@ class GXDrouter (object):
 
         output += 'Mouse age regular expression - searched in figure text:\n'
         output += self.ageTextTransformer.getBigRegex() + '\n'
+
+        output += 'Mouse Age Exclude terms:\n'
+        for t in sorted(self.ageExcludeDict.keys()):
+            output += "\t'%s'\n" % t
 
         output += 'Route=No for these journals:\n'
         for t in sorted(self.skipJournals):
@@ -430,8 +491,12 @@ def process():
     cat2Exclude = [line.strip() for line in open(CAT2EXCLUDEFILENAME, 'r') \
                             if not line.startswith('#') and line.strip() != '']
 
+    # get ageExclude terms - Note, no line.strip(). Spaces may be important
+    ageExclude = [line[:-1] for line in open(AGEEXCLUDEFILENAME, 'r') \
+                            if not line.startswith('#') and line.strip() != '']
+
     # initialize GXDrouter
-    gxdRouter = GXDrouter(skipJournals, cat1Terms, cat1Exclude,
+    gxdRouter = GXDrouter(skipJournals, cat1Terms, cat1Exclude, ageExclude,
                                         cat2Terms, cat2Exclude, numChars=30)
 
     # get testSet from stdin
