@@ -1,5 +1,3 @@
-blot
-digoxygenin
 #expression
 embryonic expression
 expression analysis
@@ -15,17 +13,8 @@ protein expression
 rna expression
 strong expression
 
-gfp
 immuno
-in situ
-in-situ
-knockin
-knock in
-knock-in
-lacz
-mount
-mrna level
-northern
+
 #pcr
 qpcr
 q-pcr
@@ -45,12 +34,26 @@ rt)-pcr
 rtpcr
 rt-pcr
 
-reporter
+blot
+flat mount
+flatmount
+flat-mount
+in situ
+in-situ
+lacz detect
+lacz express
+lacz positive
+lacz stain
+lacz-positive
+lacz-stain
+mrna level
+northern
 rnascope
-section
 smfish
-stain
 western
+whole mount
+wholemount
+whole-mount
 x gal
 xgal
 x-gal

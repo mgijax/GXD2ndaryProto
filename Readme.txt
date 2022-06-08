@@ -204,3 +204,37 @@ NewRules/
             - Precision 35.30   Recall 95.22
             - TP 1893.  FP 3470.  TN 11506. FN 95
 
+        Age6Assay12/  6/8/2022    (Cat2 chgs: "expression" term tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: replace "expression" by more specific expression terms
+            - cat2 excludes "amount"
+            - for 560 journals w/ no GXD papers, set routed = No
+            - Adds two points to precision, lose 3 TP to FN
+            - Precision 35.45   Recall 95.22
+            - TP 1893.  FP 3447.  TN 11529. FN 95
+
+        Age6Assay13/  6/8/2022    (Cat2 chgs: immuno exclude terms)
+            - embryo in full text, the age/cat2 in figure text
+            - cat2 excludes "amount". add immunopre and immunorea
+            - for 560 journals w/ no GXD papers, set routed = No
+            - NO CHANGED ROUTINGS
+            - Precision 35.45   Recall 95.22
+            - TP 1893.  FP 3447.  TN 11529. FN 95
+
+        Age6Assay14/  6/8/2022    (Cat2 chgs: replace 'pcr')
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: replace 'pcr' by more specific terms
+            - cat2 excludes "amount". add chip pcr exclude terms
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 15 FP -> TN, 1 additional FN
+            - Precision 35.54   Recall 95.17
+            - TP 1892.  FP 3432.  TN 11544. FN 96
+
+        Age6Assay15/  6/8/2022    (Cat2 chgs: other term tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: other tweaks
+            - cat2: other tweaks, "amount" gone since "mount" is out of cat2
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 150 FP -> TN, 19 additional FN
+            - Precision 36.33   Recall 94.22
+            - TP 1873.  FP 3282.  TN 11694. FN 115
