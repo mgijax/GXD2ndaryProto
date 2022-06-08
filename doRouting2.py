@@ -336,6 +336,8 @@ def findMatches(text, termDict, matchType, ctxLen):
         so if some terms are substrings of other terms, which one matches
         first is undefined.
     """
+    resultText = text           # resulting text if there are no terms to match
+
     findText = text.replace('\n', ' ')  # so we can match terms across lines
                                         # ..this is the text to search in.
 
@@ -419,10 +421,11 @@ matchesHdr = matchesFieldSep.join(['ID',
                     'preText',
                     'matchText',
                     'postText',
+                    'confidence',
                     ]) + '\n'
 
 def formatMatches(ID, routing, predType, goodJournal, numCat1Matches,
-                    numAgeMatches, numCat2Matches, matchRcds):
+                    numAgeMatches, numCat2Matches, matchRcds, confidence):
     output = ''
     for m in matchRcds:
         output += matchesFieldSep.join([
@@ -437,6 +440,7 @@ def formatMatches(ID, routing, predType, goodJournal, numCat1Matches,
                    "'%s'" % m.preText.replace('\n','\\n').replace('\t','\\t'),
                    "'%s'" % m.matchText.replace('\n','\\n').replace('\t','\\t'),
                    "'%s'" % m.postText.replace('\n','\\n').replace('\t','\\t'),
+                   str(confidence),
                    ]) + '\n'
     return output
 
@@ -447,9 +451,10 @@ matchesNoCountsHdr = matchesFieldSep.join(['ID',
                     'preText',
                     'matchText',
                     'postText',
+                    'confidence',
                     ]) + '\n'
 
-def formatMatchesNoCounts(ID, routing, predType, matchRcds):
+def formatMatchesNoCounts(ID, routing, predType, matchRcds, confidence):
     output = ''
     for m in matchRcds:
         output += matchesFieldSep.join([
@@ -460,6 +465,7 @@ def formatMatchesNoCounts(ID, routing, predType, matchRcds):
                    "'%s'" % m.preText.replace('\n','\\n').replace('\t','\\t'),
                    "'%s'" % m.matchText.replace('\n','\\n').replace('\t','\\t'),
                    "'%s'" % m.postText.replace('\n','\\n').replace('\t','\\t'),
+                   str(confidence),
                    ]) + '\n'
     return output
 
@@ -541,6 +547,7 @@ def process():
 
     # for each record, routeThisRef(), gather counts, write list of routings
     for i, ref in enumerate(samples):
+        conf = ref.getField('confidence')
         routing = gxdRouter.routeThisRef(ref.getID(), ref.getDocument(),
                                                     ref.getField('journal'))
         numCat1Matches  = len(gxdRouter.getCat1Matches())
@@ -570,30 +577,30 @@ def process():
         r = formatRouting(ref, routing, predType, goodJournal, 
                                             numCat1Matches, numCat1Excludes,
                                             numAgeMatches,  numAgeExcludes,
-                                            numCat2Matches, numCat2Excludes,)
+                                            numCat2Matches, numCat2Excludes)
         routingsFile.write(r)
 
         # Exclude matches file
         m = formatMatches(ref.getID(), routing, predType, goodJournal,
                     numCat1Matches, numAgeMatches, numCat2Matches,
-                    gxdRouter.getExcludeMatches())
+                    gxdRouter.getExcludeMatches(), conf)
         excludeMatchesFile.write(m)
 
         # Age match report, helpful for evaluating/debugging age mapping chgs
         m = formatMatchesNoCounts(ref.getID(), routing, predType, 
-                    gxdRouter.getAgeMatches() + gxdRouter.getAgeExcludes())
+                gxdRouter.getAgeMatches() + gxdRouter.getAgeExcludes(), conf)
         ageMatchesFile.write(m)
 
         # Match files broken down by prediction type (TP, FP, ...)
         m = formatMatches(ref.getID(), routing, predType, goodJournal,
                     numCat1Matches, numAgeMatches, numCat2Matches,
-                    gxdRouter.getPosMatches())
+                    gxdRouter.getPosMatches(), conf)
         matchesFile[predType].write(m)
         if predType == 'FN':    # report exclude matches for FN's
                                 #  to help understand why not routed
             m = formatMatches(ref.getID(), routing, predType, goodJournal,
                         numCat1Matches, numAgeMatches, numCat2Matches,
-                        gxdRouter.getExcludeMatches())
+                        gxdRouter.getExcludeMatches(), conf)
             matchesFile[predType].write(m)
     # end routing loop
 
