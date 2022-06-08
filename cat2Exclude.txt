@@ -1,6 +1,10 @@
 immunopre
 immunorea
 
+chipqpcr
+chip-qpcr
+chip-q-pcr
+
 amount
 #mountain
 #surmount

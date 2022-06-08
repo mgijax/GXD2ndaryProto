@@ -26,7 +26,25 @@ lacz
 mount
 mrna level
 northern
-pcr
+#pcr
+qpcr
+q-pcr
+qrtpcr
+quantitative pcr
+quantitative-pcr
+real time pcr
+realtime pcr
+real-time pcr
+real-time-pcr
+reverse transcriptase pcr
+reverse transcription pcr
+reverse transcription-pcr
+reverse-transcription pcr
+rt pcr
+rt)-pcr
+rtpcr
+rt-pcr
+
 reporter
 rnascope
 section
