@@ -233,8 +233,49 @@ NewRules/
         Age6Assay15/  6/8/2022    (Cat2 chgs: other term tweaks)
             - embryo in full text, the age/cat2 in figure text
             - Cat2: other tweaks
-            - cat2: other tweaks, "amount" gone since "mount" is out of cat2
+            - cat2 excludes: tweaks, "amount" gone since "mount" is out of cat2
             - for 560 journals w/ no GXD papers, set routed = No
             - 150 FP -> TN, 19 additional FN
             - Precision 36.33   Recall 94.22
             - TP 1873.  FP 3282.  TN 11694. FN 115
+            [ just trying to see:  Age6Assay15 but looking for mouse_age in FULL
+                text instead of figure text, kills precision (>3000 more FP)
+                - Precision 22.32   Recall 97.28
+                - TP 1934.  FP 6729.  TN 8247. FN 54
+            ]
+
+        Age6Assay16/  6/9/2022    (Cat2 chgs: term tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: add sagittal view, section co-expression, overexpression
+            - cat2 excludes: fix 'methods" section', remove immunorea
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 20 FN -> TP, 85 TN -> FP
+            - Precision 35.99   Recall 95.22
+            - TP 1893.  FP 3367.  TN 11609. FN 95
+
+        Age6Assay17/  6/10/2022    (Cat2 chgs: term tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: just "view" (remove sagittal view)
+            - cat2 excludes: same as Age6Assay16
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 36 TN -> FP   - so lost a few TN from Age6Assay16
+            - Precision 35.74   Recall 95.22
+            - TP 1893.  FP 3403.  TN 11573. FN 95
+
+        Age6Assay18/  6/10/2022    (Cat2 chgs: term tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: remove "view", add sagittal frontal transverse coronal
+            - cat2 excludes: same as Age6Assay16
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 7 TN -> FP   - so lost a few TN from Age6Assay16
+            - Precision 35.94   Recall 95.22
+            - TP 1893.  FP 3374.  TN 11602. FN 95
+
+        Age6Assay19/  6/10/2022    (Cat2 chgs: term tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: try {sagittal frontal transverse coronal} view
+            - cat2 excludes: same as Age6Assay16
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 2 TN -> FP   - so lost a few TN from Age6Assay16
+            - Precision 35.97   Recall 95.22
+            - TP 1893.  FP 3369.  TN 11607. FN 95

@@ -57,3 +57,12 @@ whole-mount
 x gal
 xgal
 x-gal
+
+sagittal view
+#coronal view
+#transverse view
+#frontal view
+
+section
+co-expression
+overexpression
