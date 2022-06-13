@@ -24,18 +24,18 @@ transplanted
 xenopus
 zebra
 # below: spaces before so they match only at the beginning of words
- arrested
- cultur
- fin bud
- infect
- inject
- microinject
- treat
- vitrifi
- vitro
+_arrested
+_cultur
+_fin bud
+_infect
+_inject
+_microinject
+_treat
+_vitrifi
+_vitro
 # below: spaces before and after so they don't match parts of words
- bat 
- cat 
- pig 
- rat 
- rats 
+_bat_
+_cat_
+_pig_
+_rat_
+_rats_

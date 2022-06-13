@@ -78,6 +78,14 @@ CAT2EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Exclude.txt'
 AGEEXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/ageExclude.txt'
 
 
+class TextMappingFromStringsWordBoundaries (TextMappingFromStrings):
+
+    def _str2regex(self, s):
+        """ replace '_' w/ word boundaries (r'\b')
+        """
+        regex = re.escape(s).replace('_', r'\b')
+        return regex
+
 class SimpleTextMappingFromStrings (TextMappingFromStrings):
 
     def _str2regex(self, s):
@@ -170,7 +178,12 @@ class GXDrouter (object):
 
     def _buildMouseAgeDetection(self):
         self.ageTextTransformer = TextTransformer(SampleLib.AgeMappings)
-        self.ageExcludeDict = {x.lower() : x.upper() for x in self.ageExclude}
+        #self.ageExcludeDict = {x.lower() : x.upper() for x in self.ageExclude}
+
+        self.ageExcludeTextMapping = TextMappingFromStringsWordBoundaries( \
+                'excludeAge', self.ageExclude, lambda x: x.upper(), context=0)
+        self.ageExcludeTextTransformer = TextTransformer( \
+                                                [self.ageExcludeTextMapping])
             # re to detect strings that would prohibit an age exclude term
             #   from causing the exclusion if they occur between
             #   the exclude term and the matching age text:
@@ -199,18 +212,22 @@ class GXDrouter (object):
     def _isGoodAgeMatch(self, m # MatchRcd
                         ):
         """ Return True if this looks like a good mouse age match.
+            (i.e., no age exclusion terms found in the pre/post text)
             If not a good mouse age, return False and:
-                Modify m.preText or m.postText to highlight the text that
-                    indicates it is not a good match,
+                Modify m.preText or m.postText to highlight the exclude term
+                    that indicates it is not a good match,
                 Set m.matchType to 'excludeAge'
         """
-        #return True
         goodAgeMatch = True     # assume no exclusion terms detected
 
-        # search m.preText for age exclusion terms
-        newText, preTextMatches = findMatches(m.preText, self.ageExcludeDict,
-                                                                'excludeAge', 0)
-        for em in preTextMatches:       # for exclusion matches in preText
+        # Search m.preText for age exclusion terms
+        #newText, preTextMatches = findMatches(m.preText, self.ageExcludeDict,
+        #                                                       'excludeAge', 0)
+        newText = self.ageExcludeTextTransformer.transformText(m.preText)
+        excludeMatches = self.ageExcludeTextTransformer.getMatches()
+        self.ageExcludeTextTransformer.resetMatches()
+
+        for em in excludeMatches:       # for exclusion matches in preText
             if not self.ageExcludeBlockRE.search(m.preText[em.end:]):
                 # no intervening text found that should block the exclude
                 newPreText = m.preText[:em.start] + em.replText + \
@@ -219,10 +236,14 @@ class GXDrouter (object):
                 goodAgeMatch = False
                 break
 
-        # search m.postText for age exclusion terms
-        newText, postTextMatches = findMatches(m.postText, self.ageExcludeDict,
-                                                                'excludeAge', 0)
-        for em in postTextMatches:      # for exclusion matches in postText
+        # Search m.postText for age exclusion terms
+        #newText, postTextMatches = findMatches(m.postText, self.ageExcludeDict,
+        #                                                       'excludeAge', 0)
+        newText = self.ageExcludeTextTransformer.transformText(m.postText)
+        excludeMatches = self.ageExcludeTextTransformer.getMatches()
+        self.ageExcludeTextTransformer.resetMatches()
+
+        for em in excludeMatches:      # for exclusion matches in postText
             if not self.ageExcludeBlockRE.search(m.postText[:em.start]):
                 # no intervening text found that should block the exclude
                 newPostText = m.postText[:em.start] + em.replText + \
@@ -295,8 +316,11 @@ class GXDrouter (object):
         output += self.ageTextTransformer.getBigRegex() + '\n'
 
         output += 'Mouse Age Exclude terms:\n'
-        for t in sorted(self.ageExcludeDict.keys()):
+        for t in sorted(self.ageExclude):
             output += "\t'%s'\n" % t
+
+        output += 'Mouse age exclude regular expression:\n'
+        output += self.ageExcludeTextTransformer.getBigRegex() + '\n'
 
         output += 'Route=No for these journals:\n'
         for t in sorted(self.skipJournals):
