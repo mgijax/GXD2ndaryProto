@@ -57,6 +57,8 @@ whole-mount
 x gal
 xgal
 x-gal
+-gal stain
+-galactosidase stain
 
 section
 co-expression
