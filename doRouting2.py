@@ -105,7 +105,7 @@ class GXDrouter (object):
                 ageExclude,     # [age exclude terms]
                 cat2Terms,      # [category 2 terms]
                 cat2Exclude,    # [category 2 exclude terms]
-                numChars=30,    # n chars on each side of a match to report
+                numChars=30,    # n chars on each side of cat1/2 match to report
                 ):
         self.numChars = numChars  # num of chars of surrounding context to keep
         self.skipJournals = {j for j in skipJournals} # set of journal names
@@ -115,9 +115,10 @@ class GXDrouter (object):
         self.cat2Terms    = cat2Terms
         self.cat2Exclude  = cat2Exclude
 
+        self.numFigTextWords = 75
         self.figTextConverter = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
-                                            numWords=75)
+                                            numWords=self.numFigTextWords)
         self._buildCat1Detection()
         self._buildCat2Detection()
         self._buildMouseAgeDetection()
@@ -304,6 +305,8 @@ class GXDrouter (object):
         for t in sorted(self.cat1ExcludeDict.keys()):
             output += "\t'%s'\n" % t
 
+        output += 'Number of figure text words: %d\n' % self.numFigTextWords
+
         output += 'Category2 terms in figure text:\n'
         for t in sorted(self.cat2TermsDict.keys()):
             output += "\t'%s'\n" % t
@@ -315,12 +318,17 @@ class GXDrouter (object):
         output += 'Mouse age regular expression - searched in figure text:\n'
         output += self.ageTextTransformer.getBigRegex() + '\n'
 
+        output += 'Num chars around age matches to look for age excludes: %d\n'\
+                                                    % SampleLib.CONTEXT
         output += 'Mouse Age Exclude terms:\n'
         for t in sorted(self.ageExclude):
             output += "\t'%s'\n" % t
 
         output += 'Mouse age exclude regular expression:\n'
         output += self.ageExcludeTextTransformer.getBigRegex() + '\n'
+
+        output += 'Mouse age exclude blocking regular expression:\n'
+        output += self.ageExcludeBlockRE.pattern + '\n'
 
         output += 'Route=No for these journals:\n'
         for t in sorted(self.skipJournals):
