@@ -279,3 +279,90 @@ NewRules/
             - 2 TN -> FP   - so lost a few TN from Age6Assay16
             - Precision 35.97   Recall 95.22
             - TP 1893.  FP 3369.  TN 11607. FN 95
+
+        Age7Assay16/  6/13/2022    (Age exclusion implementation chg)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: same as Age6Assay16
+            - Age excludes: uses regex for word boundaries instead of " "
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 14 FP -> TN   - compared to Age6Assay16
+            - Precision 36.08   Recall 95.22
+            - TP 1893.  FP 3353.  TN 11623. FN 95
+
+        Age8Assay16/  6/13/2022    (Age: add embryo lysate terms)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: same as Age6Assay16
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - Precision 36.08   Recall 95.27
+            - TP 1894.  FP 3355.  TN 11621. FN 94
+
+        Age9Assay16/  6/13/2022 (Age: add day #.5, #.5 day, # day embryo, tweak)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: same as Age6Assay16
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 12 FN -> TP, 59 TN -> FP (compared to Age8)
+            - Precision 35.83   Recall 95.88
+            - TP 1906.  FP 3414.  TN 11562. FN 82
+
+        Age10Assay16/  6/13/2022 (Age: add back E14)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: same as Age6Assay16
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 3 FN -> TP, 53 TN -> FP (compared to Age9)
+            - Precision 35.51   Recall 96.03
+            - TP 1909.  FP 3467.  TN 11509. FN 79
+             
+              (tried adding "postnatal" as age Exclude term, 
+               TP 1899  FP 3449  TN 11527  FN 89. Many exclusions had an 
+               embryonic age plus "as well as POSTNATAL" or "and POSTNATAL", 
+               to not clear this is good)
+
+        Age10Assay16_210_50/  6/13/2022 (Age: chg age exclude context 30 -> 210)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: same as Age6Assay16
+            - Age excludes: same as Age7
+            - (tried exclude context 120, 150, 180, 210 = best)
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 4 TP -> FN, 235 FP -> TN (compared to Age10) - BEST YET?
+            - Precision 37.48   Recall 95.82
+            - TP 1905.  FP 3178.  TN 11798. FN 83
+
+        Age10Assay16_210_100/  6/13/2022 (figText words: 50 -> 100, age context: 210)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: same as Age6Assay16
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 6 FN -> TP, 103 TN -> FP (compared to Age11)
+            - Precision 36.11   Recall 96.13
+            - TP 1911.  FP 3381.  TN 11595. FN 77
+
+        Age10Assay20/  6/13/2022 (cat2 "view" tweaks)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: sagittal coronal transverse frontal rostral caudal
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - 10 TN -> FP (compared to Assay16))
+            - Precision 36.04   Recall 96.13
+            - TP 1911.  FP 3391.  TN 11585. FN 77
+
+        Age10Assay20_210_75/  6/13/2022 (figText words 75, age context 210)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: sagittal coronal transverse frontal rostral caudal
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - figtext 75 words seems pretty good
+            - Precision 36.58   Recall 96.08
+            - TP 1910.  FP 3311.  TN 11665. FN 78
+
+        >>>>>>>>>>> DECIDED 6/14 TO USE 210 and 75 <<<<<<<<<<<<<
+
+        Age10Assay21_210_75/  6/13/2022 (get rid of "view" words)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: lose: sagittal coronal transverse frontal rostral caudal
+            - Age excludes: same as Age7
+            - for 560 journals w/ no GXD papers, set routed = No
+            - Precision 36.66   Recall 96.03
+            - TP 1909.  FP 3299.  TN 11677. FN 79

@@ -117,7 +117,7 @@ class GXDrouter (object):
 
         self.figTextConverter = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
-                                            numWords=50)
+                                            numWords=75)
         self._buildCat1Detection()
         self._buildCat2Detection()
         self._buildMouseAgeDetection()
