@@ -230,13 +230,16 @@ def doSamples(sql):
         for i,r in enumerate(results):
             if i % 200 == 0: verbose("..%d" % i)
             text = getText4Ref(r['_refs_key'])
-            text = cleanUpTextField(text) + '\n'
-            try:
-                sample = sqlRecord2ClassifiedSample(r, text )
-                outputSampleSet.addSample(sample)
-            except:         # if some error, try to report which record
-                sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
-                raise
+            if len(text.strip()):       # not empty string
+                text = cleanUpTextField(text) + '\n'
+                try:
+                    sample = sqlRecord2ClassifiedSample(r, text )
+                    outputSampleSet.addSample(sample)
+                except:         # if some error, try to report which record
+                    sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
+                    raise
+            else:
+                verbose("%s has no text, skipping\n" % r['ID'])
 
     # Add meta-data to sample set
     outputSampleSet.setMetaItem('host', args.host)
