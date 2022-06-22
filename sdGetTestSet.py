@@ -4,6 +4,7 @@
            run sql to get a test set of refs for GXD secondary triage analysis.
            Include all extracted text sections except references and supp data.
            (minor) Data transformations include:
+            lower case all text
             replacing non-ascii chars with ' '
             replacing FIELDSEP and RECORDSEP chars in the doc text w/ ' '
             Keep paragraph boundaries ('\n\n') to enable finding of figure
@@ -35,8 +36,8 @@ def getArgs():
         description='Get test set for GXD 2ndary triage proto.')
 
     parser.add_argument('option', action='store', default='counts',
-        choices=['routed', 'notRoutedKeep', 'notRoutedDiscard', 'test'],
-        help='get samples or just run automated tests')
+        choices=['routed', 'notRoutedKeep', 'notRoutedDiscard', 'ids','test'],
+        help='get samples, IDs from stdin, or just run automated tests')
 
     parser.add_argument('outFile', action='store', default='-',
         help='output file to write to. "-" for stdout.')
@@ -182,33 +183,60 @@ and s2._status_key = 31576669 -- not routed
 and rt.term = 'discard'
 and b.creation_date > '6/1/2021'
 """
+
+SQL_IDs = """
+-- select refs by list of IDs
+select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
+        st.term "GXD status", 'TP' "orig TP/FP", b.journal
+from bib_refs b join bib_workflow_status s
+    on (b._refs_key = s._refs_key and s.iscurrent =1
+        and s._group_key = 31576665) -- current GXD status
+left join bib_workflow_relevance r on (b._refs_key = r._refs_key
+    and r._createdby_key = 1617) -- relevance_classifier
+join acc_accession a on (b._refs_key = a._object_key
+    and a._mgitype_key = 1 and a._logicaldb_key = 1)
+join voc_term st on (s._status_key = st._term_key)
+left join voc_term rt on (r._relevance_key = rt._term_key)
+where
+a.accid in (%s)
+"""
 #-----------------------------------
 
 def doSamples(sql):
     ''' Write known samples to stdout.
+        sql can be a string (single sql command set) OR a list of strings
     '''
     startTime = time.time()
     verbose("%s\nHitting database %s %s as mgd_public\n" % \
                                         (time.ctime(), args.host, args.db,))
-    # Build sql
-    if args.nResults != 0:
-        limitClause = 'limit %d\n' % args.nResults
-        sql += limitClause
 
     outputSampleSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
 
-    results = db.sql(sql, 'auto')
+    # Build sql
+    if type(sql) == type(''):   # force a list
+        sqlList = [sql]
+    else:
+        sqlList = sql
 
-    for i,r in enumerate(results):
-        if i % 200 == 0: verbose("..%d" % i)
-        text = getText4Ref(r['_refs_key'])
-        text = cleanUpTextField(text) + '\n'
-        try:
-            sample = sqlRecord2ClassifiedSample(r, text )
-            outputSampleSet.addSample(sample)
-        except:         # if some error, try to report which record
-            sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
-            raise
+    if args.nResults != 0:      # limit number of results for debugging?
+        limitClause = 'limit %d\n' % args.nResults
+        sqlList = [sqlList[0] + limitClause]    # just 1st query + limitClause
+
+    # Run it
+    for sql in sqlList:
+        results = db.sql(sql, 'auto')
+
+        # Create sample records and add to SampleSet
+        for i,r in enumerate(results):
+            if i % 200 == 0: verbose("..%d" % i)
+            text = getText4Ref(r['_refs_key'])
+            text = cleanUpTextField(text) + '\n'
+            try:
+                sample = sqlRecord2ClassifiedSample(r, text )
+                outputSampleSet.addSample(sample)
+            except:         # if some error, try to report which record
+                sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
+                raise
 
     # Add meta-data to sample set
     outputSampleSet.setMetaItem('host', args.host)
@@ -337,6 +365,18 @@ def main():
     elif args.option == 'routed':           doSamples(SQL_routed)
     elif args.option == 'notRoutedKeep':    doSamples(SQL_notRoutedKeep)
     elif args.option == 'notRoutedDiscard': doSamples(SQL_notRoutedDiscard)
+    elif args.option == 'ids':
+        ids = ["'%s'" % x.strip() for x in sys.stdin]
+        verbose('Read %d IDs\n' % len(ids))
+        step = 500      # num of IDs to format per sql stmt
+        sqlList = []
+        for start in range(0, len(ids), step):
+            idSubset = ids[start:start+step]
+            formattedIDs = ','.join(idSubset)
+            sql = SQL_IDs % formattedIDs
+            #print(sql)
+            sqlList.append(sql)
+        doSamples(sqlList)
     else: sys.stderr.write("invalid option: '%s'\n" % args.option)
 
     exit(0)
