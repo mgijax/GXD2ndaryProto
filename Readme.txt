@@ -439,3 +439,22 @@ NewRules/
             - 1 FP->TN, 0 TP->FN.
             - Precision 38.58   Recall 95.88
             - TP 1906.  FP 3034.  TN 11942. FN 82
+
+        Age19Assay22/  6/20/2022 (trying new age exclude terms, experiment 9)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: includes "-gal stain" and "-galactosidase stain"
+            - Age: added "autopod" and "embryonic stage|age"
+             -for 560 journals w/ no GXD papers, set routed = No
+            - 3 FN->TP, 79 TN->FP
+            - Precision 38.01   Recall 96.03
+            - TP 1909.  FP 3113.  TN 11863. FN 79
+
+        Age20Assay22/  6/20/2022 (trying new age exclude terms, experiment 10)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: includes "-gal stain" and "-galactosidase stain"
+            - Age: chged age excludes: lose pregnant terms, tumor,
+                dose->more specific terms
+             -for 560 journals w/ no GXD papers, set routed = No
+            - 2 FN->TP, 61 TN->FP
+            - Precision 37.58   Recall 96.13
+            - TP 1911.  FP 3174.  TN 11802. FN 77

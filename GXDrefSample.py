@@ -103,7 +103,7 @@ AgeMappings = [
     TextMapping('ee',   # early embryo terms
                         # mesenchymal mesenchymes? ?
         r'\b(?:' +
-            r'blastocysts?|blastomeres?|headfold' +
+            r'blastocysts?|blastomeres?|headfold|autopods?' +
             r'|embryonic\slysates?|embryo\slysates?' +
             r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
             r'|(?:limb(?:\s|-)?)buds?' +    # bud w/ limb in front
@@ -120,8 +120,8 @@ AgeMappings = [
         r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('developmental',   # "developmental" terms
         r'\b(?:' +
-            r'developmental\sstages?' +
-            r'|developmental\sages?' +
+            r'(?:developmental|embryonic)\sstages?' +
+            r'|(?:developmental|embryonic)\sages?' +
         r')\b', '__mouse_age', context=CONTEXT),
     TextMapping('fetus',   # fetus terms
         r'\b(?:' +
