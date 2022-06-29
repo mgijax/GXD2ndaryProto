@@ -199,6 +199,12 @@ class RefSample (BaseSample):
         return self
     # ---------------------------
 
+    def lower(self):        # preprocessor
+        # lower case the text
+        self.setField('text', self.getField('text').lower())
+        return self
+    # ---------------------------
+
     def rmNewLines(self):        # preprocessor
         # remove '\n' from the text to facilitate simple term searches
         self.setField('text', self.getField('text').replace('\n', ' '))
