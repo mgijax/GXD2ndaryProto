@@ -17,10 +17,14 @@ import sys
 import os
 import time
 import argparse
+import subprocess
 import unittest
 import db
+import Pdfpath
+import extractedTextSplitter
 import GXDrefSample as SampleLib
 from utilsLib import removeNonAscii
+
 #-----------------------------------
 
 sampleObjType = SampleLib.ClassifiedRefSample
@@ -41,6 +45,10 @@ def getArgs():
 
     parser.add_argument('outFile', action='store', default='-',
         help='output file to write to. "-" for stdout.')
+
+    parser.add_argument('--frompdf', dest='fromPDF', action='store_true',
+        required=False,
+        help="extract text from the archived PDFs instead of from db")
 
     parser.add_argument('-l', '--limit', dest='nResults',
         required=False, type=int, default=0, 		# 0 means ALL
@@ -184,10 +192,12 @@ and rt.term = 'discard'
 and b.creation_date > '6/1/2021'
 """
 
+# SQL for id list. Force MGI ID in the results as this is needed to extract
+#  text from PDFs and the IDs in the input may be a J# or PMID or something.
 SQL_IDs = """
 -- select refs by list of IDs
-select b._refs_key, a.accid "ID", rt.term "relevance", r.confidence,
-        st.term "GXD status", 'TP' "orig TP/FP", b.journal
+select b._refs_key, a.accid "ID", mgi.accid "mgiID", rt.term "relevance",
+    r.confidence, st.term "GXD status", 'TP' "orig TP/FP", b.journal
 from bib_refs b join bib_workflow_status s
     on (b._refs_key = s._refs_key and s.iscurrent =1
         and s._group_key = 31576665) -- current GXD status
@@ -195,6 +205,9 @@ left join bib_workflow_relevance r on (b._refs_key = r._refs_key
     and r._createdby_key = 1617) -- relevance_classifier
 join acc_accession a on (b._refs_key = a._object_key
     and a._mgitype_key = 1 and a._logicaldb_key = 1)
+join acc_accession mgi on (b._refs_key = mgi._object_key
+    and mgi._mgitype_key = 1 and mgi._logicaldb_key = 1
+    and mgi.prefixpart = 'MGI:')
 join voc_term st on (s._status_key = st._term_key)
 left join voc_term rt on (r._relevance_key = rt._term_key)
 where
@@ -229,7 +242,20 @@ def doSamples(sql):
         # Create sample records and add to SampleSet
         for i,r in enumerate(results):
             if i % 200 == 0: verbose("..%d" % i)
-            text = getText4Ref(r['_refs_key'])
+            if args.fromPDF:
+                mgiID = r['ID']
+                if not mgiID.startswith('MGI:'):
+                    if r.has_key('mgiID'):
+                        mgiID = r['mgiID']
+                    else:
+                        msg = 'Error on record %d:\n%s\n' % (i, str(r))
+                        msg += 'need MGI ID to get text from PDF\n'
+                        raise RuntimeError(msg)
+
+                text = getText4Ref_fromPDF(mgiID)
+            else:
+                text = getText4Ref_fromDB(r['_refs_key'])
+
             if len(text.strip()):       # not empty string
                 text = cleanUpTextField(text) + '\n'
                 try:
@@ -293,8 +319,55 @@ def sqlRecord2ClassifiedSample(r,               # sql Result record
     return newSample.setFields(newR)
 #-----------------------------------
 
-def getText4Ref(refKey):
+def getText4Ref_fromPDF(mgiID):
     """ Return extracted text (string) - in lower case -
+        from the PDF.
+        for the specified MGI ID
+    """
+    PDF_STORAGE_BASE_PATH = '/data/littriage'
+    prefix, numeric = mgiID.split(':')
+    filePath = os.path.join(Pdfpath.getPdfpath(PDF_STORAGE_BASE_PATH,mgiID),
+                                                            numeric + '.pdf')
+
+    text = extractTextFromPdf(filePath)
+    return text.lower()
+#-----------------------------------
+
+splitter = extractedTextSplitter.ExtTextSplitter()
+
+def extractTextFromPdf(pdfPathName):
+    """ Return the extracted text from the PDF, omitting the refs and supp data
+        sections
+    """
+    ## Get full text from PDF
+    LITPARSER             = '/usr/local/mgi/live/mgiutils/litparser'
+    executable = os.path.join(LITPARSER, 'pdfGetFullText.sh')
+
+    cmd = [executable, pdfPathName]
+    cmdText = ' '.join(cmd)
+    #verbose(cmdText + '\n')
+    completedProcess = subprocess.run(cmd, capture_output=True, text=True)
+
+    if completedProcess.returncode != 0:
+        error = "pdftotext error: %d<p>%s<p>%s<p>%s" % \
+                        (completedProcess.returncode, cmdText,
+                            completedProcess.stderr, completedProcess.stdout)
+        raise RuntimeError(error)
+    else:
+        text = completedProcess.stdout
+        #if completedProcess.stderr:
+        #    error = completedProcess.stderr
+
+    ## Split the text and get all but the reference and supp data sections
+    (body, refs, manuFigures, starMethods, suppData) = \
+                                                    splitter.splitSections(text)
+
+    return body + manuFigures + starMethods
+#-----------------------------------
+
+def getText4Ref_fromDB(refKey):
+    """ Return extracted text (string) - in lower case -
+        from the DB.
         for the specified _refs_key
     """
     # sql to get extracted text, omitting reference and supplemental sections
@@ -308,7 +381,7 @@ def getText4Ref(refKey):
     results = db.sql(extractedSql % (refKey), 'auto')
     textparts = [ r['extractedtext'] for r in results]
 
-    return '\n\n'.join(textparts)
+    return ''.join(textparts)
 #-----------------------------------
 
 def cleanUpTextField(text):
