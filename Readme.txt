@@ -458,3 +458,15 @@ NewRules/
             - 2 FN->TP, 61 TN->FP
             - Precision 37.58   Recall 96.13
             - TP 1911.  FP 3174.  TN 11802. FN 77
+
+        Age20Assay22_post2005/  6/23/2022 (all GXD papers since 2005)
+            - embryo in full text, the age/cat2 in figure text
+             -for 382 journals w/ no GXD papers, set routed = No
+            - Precision 100   Recall 96.81
+            - TP 19692.  FP 0.  TN 0. FN 648
+
+        Age20Assay22_knockins/  6/23/2022 (all knockin papers since 2005)
+            - embryo in full text, the age/cat2 in figure text
+             -for 382 journals w/ no GXD papers, set routed = No
+            - Precision 100   Recall 97.83
+            - TP 3288.  FP 0.  TN 0. FN 73
