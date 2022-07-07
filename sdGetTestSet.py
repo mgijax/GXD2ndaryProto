@@ -32,6 +32,8 @@ sampleObjType = SampleLib.ClassifiedRefSample
 # for the Sample output file
 RECORDEND    = sampleObjType.getRecordEnd()
 FIELDSEP     = sampleObjType.getFieldSep()
+
+MINTEXTLENGTH = 200      # skip refs with extracted text shorter than this
 #-----------------------------------
 
 def getArgs():
@@ -216,7 +218,9 @@ a.accid in (%s)
 #-----------------------------------
 
 def doSamples(sql):
-    ''' Write known samples to stdout.
+    ''' Write known samples to args.outFile.
+        Write error msgs to stdout.
+        Write progress msgs to stderr.
         sql can be a string (single sql command set) OR a list of strings
     '''
     startTime = time.time()
@@ -224,6 +228,8 @@ def doSamples(sql):
                                         (time.ctime(), args.host, args.db,))
 
     outputSampleSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
+    outputSampleSet.setMetaItem('host', args.host)
+    outputSampleSet.setMetaItem('db', args.db)
 
     # Build sql
     if type(sql) == type(''):   # force a list
@@ -241,9 +247,11 @@ def doSamples(sql):
 
         # Create sample records and add to SampleSet
         for i,r in enumerate(results):
-            if i % 200 == 0: verbose("..%d" % i)
-            if args.fromPDF:
-                mgiID = r['ID']
+            if i % 200 == 0: verbose("..%d\n" % i)
+            if not args.fromPDF:        # get from db
+                text = getText4Ref_fromDB(r['_refs_key'])
+            else:                       # extract text from PDF
+                mgiID = r['ID']      # we need an MGI ID to find the PDF
                 if not mgiID.startswith('MGI:'):
                     if r.has_key('mgiID'):
                         mgiID = r['mgiID']
@@ -252,30 +260,29 @@ def doSamples(sql):
                         msg += 'need MGI ID to get text from PDF\n'
                         raise RuntimeError(msg)
 
-                text = getText4Ref_fromPDF(mgiID)
-            else:
-                text = getText4Ref_fromDB(r['_refs_key'])
+                text, error = getText4Ref_fromPDF(mgiID)
+                if error:
+                    sys.stdout.write("Skipping %s:\n%s" % (r['ID'], error))
+                    continue
 
-            if len(text.strip()):       # not empty string
-                text = cleanUpTextField(text) + '\n'
-                try:
-                    sample = sqlRecord2ClassifiedSample(r, text )
-                    outputSampleSet.addSample(sample)
-                except:         # if some error, try to report which record
-                    sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
-                    raise
-            else:
-                verbose("%s has no text, skipping\n" % r['ID'])
+            if len(text) < MINTEXTLENGTH:
+                sys.stdout.write("Skipping %s, text length is %d\n" % \
+                                                    (r['ID'], len(text)) )
+                continue
 
-    # Add meta-data to sample set
-    outputSampleSet.setMetaItem('host', args.host)
-    outputSampleSet.setMetaItem('db', args.db)
-    outputSampleSet.setMetaItem('time', time.strftime("%Y/%m/%d-%H:%M:%S"))
-
-    # Write output
-    if args.outFile == '-': outFile = sys.stdout
-    else: outFile = args.outFile
-    outputSampleSet.write(outFile)
+            text = cleanUpTextField(text) + '\n'
+            try:
+                sample = sqlRecord2ClassifiedSample(r, text)
+                outputSampleSet.addSample(sample)
+            except:         # if some error, try to report which record
+                sys.stderr.write("Error on record %d:\n%s\n" % (i, str(r)))
+                raise
+        # Write output - for all the rcds in the dataset so far
+        # This overwrites the file each time, but it is better than saving everything
+        #  until the end and getting no output if some error kills the whole process.
+        outputSampleSet.setMetaItem('time', time.strftime("%Y/%m/%d-%H:%M:%S"))
+        outputSampleSet.write(args.outFile)
+    # end for sql in sqlList
 
     verbose('\n')
     verbose("wrote %d samples to '%s'\n" % (outputSampleSet.getNumSamples(),
@@ -319,25 +326,33 @@ def sqlRecord2ClassifiedSample(r,               # sql Result record
     return newSample.setFields(newR)
 #-----------------------------------
 
+splitter = extractedTextSplitter.ExtTextSplitter()
+
 def getText4Ref_fromPDF(mgiID):
-    """ Return extracted text (string) - in lower case -
-        from the PDF.
-        for the specified MGI ID
+    """ Return (text, error)
+        text = extracted text (string) - in lower case - from the PDF.
+            for the specified MGI ID, omitting the refs and supp data sections
+        error = None or an error message if the text could not be extracted.
     """
     PDF_STORAGE_BASE_PATH = '/data/littriage'
     prefix, numeric = mgiID.split(':')
     filePath = os.path.join(Pdfpath.getPdfpath(PDF_STORAGE_BASE_PATH,mgiID),
                                                             numeric + '.pdf')
 
-    text = extractTextFromPdf(filePath)
-    return text.lower()
+    text, error = extractTextFromPdf(filePath)
+
+    ## Split the text and get all but the reference and supp data sections
+    (body, refs, manuFigures, starMethods, suppData) = \
+                                                    splitter.splitSections(text)
+
+    text = body + manuFigures + starMethods
+    return text.lower(), error
 #-----------------------------------
 
-splitter = extractedTextSplitter.ExtTextSplitter()
-
 def extractTextFromPdf(pdfPathName):
-    """ Return the extracted text from the PDF, omitting the refs and supp data
-        sections
+    """ Return (text, error)
+        text = the extracted text from the PDF,
+        error = None or an error message if the text could not be extracted.
     """
     ## Get full text from PDF
     LITPARSER             = '/usr/local/mgi/live/mgiutils/litparser'
@@ -345,24 +360,19 @@ def extractTextFromPdf(pdfPathName):
 
     cmd = [executable, pdfPathName]
     cmdText = ' '.join(cmd)
-    #verbose(cmdText + '\n')
+    
     completedProcess = subprocess.run(cmd, capture_output=True, text=True)
 
     if completedProcess.returncode != 0:
-        error = "pdftotext error: %d<p>%s<p>%s<p>%s" % \
+        text = ''
+        error = "pdftotext error: %d\n%s\n%s\n%s\n" % \
                         (completedProcess.returncode, cmdText,
                             completedProcess.stderr, completedProcess.stdout)
-        raise RuntimeError(error)
     else:
         text = completedProcess.stdout
-        #if completedProcess.stderr:
-        #    error = completedProcess.stderr
+        error = None
 
-    ## Split the text and get all but the reference and supp data sections
-    (body, refs, manuFigures, starMethods, suppData) = \
-                                                    splitter.splitSections(text)
-
-    return body + manuFigures + starMethods
+    return text, error
 #-----------------------------------
 
 def getText4Ref_fromDB(refKey):
