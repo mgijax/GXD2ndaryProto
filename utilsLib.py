@@ -219,6 +219,16 @@ def squeezeAndEscape(s):
     """
     return r'\s+'.join( [re.escape(w) for w in s.split()] )
 
+def spacedOutRegex(s):
+    # for given str, return regex pattern str that matches the chars
+    #  in the str with optional spaces between the chars.
+    # Useful because sometimes the PDF text extraction inserts spaces
+    #  if it is in all caps or bold or a larger font
+    reg = []
+    for c in s:
+        reg.append('[%s]' % c)
+    return '[ ]*'.join(reg)
+
 #---------------------------------
 
 class TextTransformer (object):

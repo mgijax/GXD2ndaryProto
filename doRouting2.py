@@ -24,6 +24,7 @@ import argparse
 import re
 import unittest
 import figureText
+import GXD2aryAge
 import GXDrefSample as SampleLib
 from sklearnHelperLib import predictionType
 from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransformer
@@ -106,12 +107,14 @@ class GXDrouter (object):
                 cat2Terms,      # [category 2 terms]
                 cat2Exclude,    # [category 2 exclude terms]
                 numChars=30,    # n chars on each side of cat1/2 match to report
+                ageContext=210, # n chars around age matches to keep & search
                 ):
         self.numChars = numChars  # num of chars of surrounding context to keep
         self.skipJournals = {j for j in skipJournals} # set of journal names
         self.cat1Terms    = cat1Terms
         self.cat1Exclude  = cat1Exclude
         self.ageExclude   = ageExclude
+        self.ageContext   = ageContext
         self.cat2Terms    = cat2Terms
         self.cat2Exclude  = cat2Exclude
 
@@ -178,8 +181,8 @@ class GXDrouter (object):
         return len(self.cat2Matches)
 
     def _buildMouseAgeDetection(self):
-        self.ageTextTransformer = TextTransformer(SampleLib.AgeMappings)
-        #self.ageExcludeDict = {x.lower() : x.upper() for x in self.ageExclude}
+        self.ageTextTransformer = GXD2aryAge.AgeTextTransformer( \
+                                                    context=self.ageContext)
 
         self.ageExcludeTextMapping = TextMappingFromStringsWordBoundaries( \
                 'excludeAge', self.ageExclude, lambda x: x.upper(), context=0)
@@ -319,7 +322,7 @@ class GXDrouter (object):
         output += self.ageTextTransformer.getBigRegex() + '\n'
 
         output += 'Num chars around age matches to look for age excludes: %d\n'\
-                                                    % SampleLib.CONTEXT
+                                                    % self.ageContext
         output += 'Mouse Age Exclude terms:\n'
         for t in sorted(self.ageExclude):
             output += "\t'%s'\n" % t
