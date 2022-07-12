@@ -69,10 +69,24 @@ def getAgeMappings(context=210, fixContext=10):
 
     # Real age mappings
     TextMapping('dpc',
-        r'\b(?:' +
-            r'days?\spost(?:\s|-)?(?:conception|conceptus|coitum)' +
-            r'|\d\d?dpc' +         # dpc w/ a digit or two before (no space)
-            r'|dpc' +              # dpc as a word by itself
+        # For dpc numbers: allow 0-29 even though most numbers >21 may not be
+        #   mice. There tend to not be many matches > 21
+        # (0-29 is easy to code as a regexpr: r'(?:\d|[12]\d)' )
+        # Allow optional .0 and .5.  regexpr: r'(?:[.][05])?'
+        r'\b(?:' +     
+            # flavors of "days post conceptus" w/o numbers
+            r'd(?:ays?)?(?:\s|-)post(?:\s|-)?' +
+                    r'(?:concept(?:ions?|us)?|coit(?:us|um|al)?)' +
+
+            # number 1st, optional space or -, then dpc
+            r'|(?:\d|[12]\d)(?:[.][05])?(?:\s|-)?dpc' + 
+            r'|(?:\d|[12]\d)(?:[.][05])?(?:\s|-)?d[.]p[.]c' +  # periods
+
+            # dpc 1st, optional space or -, then number
+            r'|d[.]?p[.]?c[.]?(?:\s|-)?(?:\d|[12]\d)(?:[.][05])?' +
+
+            # 'd'|'day'|'days' 1st, space or - required), then number, then p.c.
+            r'|d(?:ays?)?(?:\s|-)(?:\d|[12]\d)(?:[.][05])?(?:\s|-)?p[.]?c' +
         r')\b', '__mouse_age', context=context),
 
     TextMapping('eday',
@@ -185,8 +199,37 @@ class MyTests(unittest.TestCase):
 
     def test_AgeMappings2_dpc(self):
         tt = self.tt
-        text = "s 2.5dpc 5 dpc 12 days post\nconception e"
-        expt = "s 2.__mouse_age 5 __mouse_age 12 __mouse_age e"
+        text = "s d-postcoit. 12-days-post-coitum 14 day postconceptus e"
+        expt = "s __mouse_age. 12-__mouse_age 14 __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s 12 days post\nconception e"   # across line boundaries
+        expt = "s 12 __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+                    # dpc after numbers no space or ' ' or '-' before 'dpc'
+        text = "s 2.5dpc 5 dpc 2-dpc e"
+        expt = "s __mouse_age __mouse_age __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+                    # dpc after numbers no space or ' ' or '-' before 'd.p.c'
+        text = "s 2.5d.p.c. 5 d.p.c. 2.5-d.p.c. e"
+        expt = "s __mouse_age. __mouse_age. __mouse_age. e"
+        self.assertEqual(tt.transformText(text), expt)
+
+                    # 'dpc' before numbers,
+        text = "s dpc 5.5 dpc7.5, d.p.c.21.0, dpc-7.5 e"
+        expt = "s __mouse_age __mouse_age, __mouse_age, __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+                    # 'day'  before numbers, needs ' ' or -
+        text = "s day-7-p.c. days 7.5pc, d 21.0 pc, day 10.0-p.c. e"
+        expt = "s __mouse_age. __mouse_age, __mouse_age, __mouse_age. e"
+        self.assertEqual(tt.transformText(text), expt)
+
+                    # don't match numbers out of range, >29
+        text = "s dpc70.5, 30-dpc, day-30.0-pc dpc 71 e"
+        expt = "s dpc70.5, 30-dpc, day-30.0-pc dpc 71 e"
         self.assertEqual(tt.transformText(text), expt)
         #print('\n' + tt.getReport())
 
@@ -212,4 +255,4 @@ class MyTests(unittest.TestCase):
 #-----------------------------------
 
 if __name__ == "__main__":
-    doAutomatedTests()
+    unittest.main()

@@ -399,7 +399,7 @@ NewRules/
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age excludes: exposure, electodes, oil red, necrotic, dose
             -   "dose" might need word boundary at front "_dose"?
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 195 FP->TN, 2 TP->FN. The New FN: MGI:6843985, MGI:6868083
             - Precision 38.35   Recall 95.93
             - TP 1907.  FP 3066.  TN 11910. FN 81
@@ -408,7 +408,7 @@ NewRules/
             - embryo in full text, the age/cat2 in figure text
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age excludes: giemsa, eioin, h&e, ...
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 4 FP->TN, 1 TP->FN. The New FN: MGI:6712566
             - Precision 38.37   Recall 95.88
             - TP 1906.  FP 3062.  TN 11914. FN 82
@@ -417,7 +417,7 @@ NewRules/
             - embryo in full text, the age/cat2 in figure text
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age excludes: tropicalis, drosophila, worm, ...
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 19 FP->TN, 0 TP->FN.
             - Precision 38.51   Recall 95.88
             - TP 1906.  FP 3043.  TN 11933. FN 82
@@ -426,7 +426,7 @@ NewRules/
             - embryo in full text, the age/cat2 in figure text
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age excludes: dox, tamoxifen
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 8 FP->TN, 0 TP->FN.
             - Precision 38.58   Recall 95.88
             - TP 1906.  FP 3035.  TN 11941. FN 82
@@ -435,7 +435,7 @@ NewRules/
             - embryo in full text, the age/cat2 in figure text
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age excludes: chameleon, equine, quail, zikv, bursa
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 1 FP->TN, 0 TP->FN.
             - Precision 38.58   Recall 95.88
             - TP 1906.  FP 3034.  TN 11942. FN 82
@@ -444,7 +444,7 @@ NewRules/
             - embryo in full text, the age/cat2 in figure text
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age: added "autopod" and "embryonic stage|age"
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 3 FN->TP, 79 TN->FP
             - Precision 38.01   Recall 96.03
             - TP 1909.  FP 3113.  TN 11863. FN 79
@@ -454,14 +454,14 @@ NewRules/
             - Cat2: includes "-gal stain" and "-galactosidase stain"
             - Age: chged age excludes: lose pregnant terms, tumor,
                 dose->more specific terms
-             -for 560 journals w/ no GXD papers, set routed = No
+            - for 560 journals w/ no GXD papers, set routed = No
             - 2 FN->TP, 61 TN->FP
             - Precision 37.58   Recall 96.13
             - TP 1911.  FP 3174.  TN 11802. FN 77
 
         Age20Assay22_post2005/  6/23/2022 (all GXD papers since 2005)
             - embryo in full text, the age/cat2 in figure text
-             -for 382 journals w/ no GXD papers, set routed = No
+            - for 382 journals w/ no GXD papers, set routed = No
             - Precision 100   Recall 96.81
             - TP 19692.  FP 0.  TN 0. FN 648
 
@@ -470,3 +470,28 @@ NewRules/
              -for 382 journals w/ no GXD papers, set routed = No
             - Precision 100   Recall 97.83
             - TP 3288.  FP 0.  TN 0. FN 73
+
+        Age20Assay22_j/  7/6/2022 (using shortened skipjournals from post2005)
+            - embryo in full text, the age/cat2 in figure text
+            - Cat2: includes "-gal stain" and "-galactosidase stain"
+             -for 382 journals w/ no GXD papers, set routed = No
+            - 276 TN->FP
+            - Precision 35.71   Recall 96.13
+            - TP 1911.  FP 3441.  TN 11535. FN 77
+
+        Age21Assay22_p2005/  7/12/2022 (all GXD papers since 2005)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: reworked DPC
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 12 FN->TP,   helped a bit
+            - Precision 100   Recall 96.87
+            - TP 19704.  FP 0.  TN 0. FN 636
+
+        Age21Assay22/  7/12/2022 (regular testset)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: reworked DPC
+            - for 382 journals w/ no GXD papers, set routed = No
+            - no new FP - good (same as Age20Assay22_j)
+            - Precision 35.71   Recall 96.13
+            - TP 1911.  FP 3441.  TN 11535. FN 77
+
