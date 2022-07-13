@@ -138,19 +138,28 @@ def getAgeMappings(context=210, fixContext=10):
             r'|(?:limb(?:\s|-)?)buds?' +    # bud w/ limb in front
             r'|(?<!fin(?:\s|-))buds?' +     # bud w/o 'fin ' in front
             r'|(?:' +
-                r'(?:[1248]|one|two|four|eight)(?:\s|-)cell\s' +
+                r'(?:[1248]|one|two|four|eight)(?:\s|-)cells?(?:\s|-)' +
                 r'(?:' +   # "embryo" or "stage" must come after [1248] cell
                     r'stages?|' +
                     r'(?:' +
-                        r'(?:(?:mouse|mice|cloned)\s)?embryos?' +
+                        r'(?:(?:mouse|mice|cloned)(?:\s|-))?embryos?' +
                     r')' +
                 r')' +
             r')' +
         r')\b', '__mouse_age', context=context),
     TextMapping('developmental',   # "developmental" terms
-        r'\b(?:' +
-            r'(?:developmental|embryonic)\sstages?' +
-            r'|(?:developmental|embryonic)\sages?' +
+        r'\b(?:' +  # Do we want to add simply "embryos?"
+            r'zygotes?' +
+            r'|(?:mice|mouse)(?:\s|-)embryos?' +        # more general
+            #r'|development(?:\s|-)of(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?embryos?'+
+            #r'|developing(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?embryos?' +
+            r'|development(?:al)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?stages?' +
+            r'|development(?:al)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?ages?' +
+            r'|embryo(?:nic)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?stages?' +
+            r'|embryo(?:nic)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?ages?' +
+            r'|embryo(?:nic)?(?:\s|-)development' +
+            r'|(?:st)?ages?(?:\s|-)of(?:\s|-)?embryos?' +
+            r'|development(?:al)?(?:\s|-)time(?:\s|-)courses?' +
         r')\b', '__mouse_age', context=context),
     TextMapping('fetus',   # fetus terms
         r'\b(?:' +
@@ -251,7 +260,34 @@ class MyTests(unittest.TestCase):
         text = "s 1-cell embryo one cell mice embryos 8 cell stage e"
         expt = "s __mouse_age __mouse_age __mouse_age e"
         self.assertEqual(tt.transformText(text), expt)
+
+        text = "s 1-cell-embryo one-cell-mice-embryos 8-cells-stage e"
+        expt = "s __mouse_age __mouse_age __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
         #print('\n' + tt.getReport())
+
+    def test_AgeMappings4_developmental(self):
+        tt = self.tt
+        text = "s developmental ages, development-stage, embryonic mouse ages e"
+        expt = "s __mouse_age, __mouse_age, __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s developmenting-mouse-embryos e"
+        expt = "s developmenting-__mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s development of mice-embryos e"
+        expt = "s development of __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s stages of embryos, age of embryos e"
+        expt = "s __mouse_age, __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s zygote and development-time-courses e"
+        expt = "s __mouse_age and __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
 #-----------------------------------
 
 if __name__ == "__main__":
