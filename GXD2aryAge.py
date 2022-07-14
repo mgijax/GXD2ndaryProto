@@ -166,6 +166,13 @@ def getAgeMappings(context=210, fixContext=10):
             r'fetus|fetuses' +
             r'|(?:fetal|foetal)(?!\s+(?:bovine|calf)\s+serum)' +
         r')\b', '__mouse_age', context=context),
+    TextMapping('misc',   # misc terms
+        r'\b(?:' +
+            r'genepaint' +
+            r'|allen(?:\s|-)(?:atlas|brain|institute)' +
+            r'|embryo(?:\s|-)mouse(?:\s|-)brain' +
+            r'|time(?:\s|-)series' +
+        r')\b', '__mouse_age', context=context),
     ]
 # end getAgeMappings() -----------------------------------
     
@@ -286,6 +293,16 @@ class MyTests(unittest.TestCase):
 
         text = "s zygote and development-time-courses e"
         expt = "s __mouse_age and __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+    def test_AgeMappings4_misc(self):
+        tt = self.tt
+        text = "s genepaint, allen brain atlas, allen-atlas, time series e"
+        expt = "s __mouse_age, __mouse_age atlas, __mouse_age, __mouse_age e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s embryo mouse-brain e"
+        expt = "s __mouse_age e"
         self.assertEqual(tt.transformText(text), expt)
 
 #-----------------------------------
