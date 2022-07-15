@@ -31,8 +31,9 @@ NEWFILE_short="tmp.$$.new.short"
 
 if [ "$includeIDs" == "0" ]; then
     # -f 4,6:    matchtype, matching text
-    cut  -f 4,6 $OLDFILE | sort -u > $OLDFILE_short
-    cut  -f 4,6 $NEWFILE | sort -u > $NEWFILE_short
+    # include counts of changes
+    cut  -f 4,6 $OLDFILE | sort |uniq -c > $OLDFILE_short
+    cut  -f 4,6 $NEWFILE | sort |uniq -c > $NEWFILE_short
     diff $OLDFILE_short $NEWFILE_short 
 else
     # -f 4,6:    matchtype, matching text
