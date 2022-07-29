@@ -479,19 +479,62 @@ NewRules/
             - Precision 35.71   Recall 96.13
             - TP 1911.  FP 3441.  TN 11535. FN 77
 
-        Age21Assay22_p2005/  7/12/2022 (all GXD papers since 2005)
-            - embryo in full text, the age/cat2 in figure text
-            - Age: reworked DPC
-            - for 382 journals w/ no GXD papers, set routed = No
-            - 12 FN->TP,   helped a bit
-            - Precision 100   Recall 96.87
-            - TP 19704.  FP 0.  TN 0. FN 636
-
         Age21Assay22/  7/12/2022 (regular testset)
             - embryo in full text, the age/cat2 in figure text
-            - Age: reworked DPC
+            - Age: reworked DPC, allow '.'s and d number pc
             - for 382 journals w/ no GXD papers, set routed = No
             - no new FP - good (same as Age20Assay22_j)
             - Precision 35.71   Recall 96.13
             - TP 1911.  FP 3441.  TN 11535. FN 77
+        Age21Assay22_p2005/  7/12/2022 (all GXD papers since 2005)
+            - 12 FN->TP,   helped a bit
+            - Precision 100   Recall 96.87
+            - TP 19704.  FP 0.  TN 0. FN 636
 
+        Age22Assay22/  7/13/2022 (regular testset)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: ee: allow '-'s (e.g., 1-cell-embryo)
+                Developmental: allow '-'s. Add: mice embryo(s),
+                    age|stage of embryo, developmental time course
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 14 new TP, 235 new FP
+            - Precision 33.18   Recall 96.83
+            - TP 1925.  FP 3876.  TN 11100. FN 63
+        Age22Assay22_p2005/  7/13/2022 (all GXD papers since 2005)
+            - 90 FN->TP,
+            - Precision 100   Recall 97.32
+            - TP 19794.  FP 0.  TN 0. FN 546
+
+        Age23Assay22/  7/13/2022 (regular testset)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: add misc age terms: genepaint, time series,
+                allen brain|atlas|institute, embryo mouse brain
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 1 new TP, 100 new FP (not a great trade off)
+                Decision: genepaint is good to keep. Lose Allen & time series.
+            - Precision 32.63   Recall 96.88
+            - TP 1926.  FP 3976.  TN 11000. FN 62
+        Age23Assay22_p2005/  7/13/2022 (all GXD papers since 2005)
+            - 8 FN->TP,
+            - Precision 100   Recall 97.35
+            - TP 19802.  FP 0.  TN 0. FN 538
+
+        Age24Assay22/  7/13/2022 (regular testset)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: reorg of eday:
+                generalized #'s, 1-2dig followed by optional .0 .5 .25 .75
+                allow space or '-' between terms.
+                allow ed|gd|d|day(s) # (w/ no specific following text)
+                allow gestational|embryo day #
+                allow # followed by various: e.g., day (old) mice|mouse|embryo, 
+                    ED|GD|gestional day, day(s) after fertilization
+                allow #.decimal followed by "day(s) old"|embryo(s)
+                remove: allen brain|atlas|institute, time series
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 26 FN->TP, but 2307 TN->FP <-- KILLED PRECISION
+            - Precision 23.70   Recall 98.19
+            - TP 1952.  FP 6283.  TN 8693. FN 36
+        Age24Assay22_p2005/  7/13/2022 (all GXD papers since 2005)
+            - 112 FN->TP,
+            - Precision 100   Recall 97.91
+            - TP 19914.  FP 0.  TN 0. FN 426
