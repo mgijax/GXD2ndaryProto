@@ -519,7 +519,7 @@ NewRules/
             - Precision 100   Recall 97.35
             - TP 19802.  FP 0.  TN 0. FN 538
 
-        Age24Assay22/  7/13/2022 (regular testset)
+        Age24Assay22/  7/28/2022 (regular testset)
             - embryo in full text, the age/cat2 in figure text
             - Age: reorg of eday:
                 generalized #'s, 1-2dig followed by optional .0 .5 .25 .75
@@ -534,7 +534,19 @@ NewRules/
             - 26 FN->TP, but 2307 TN->FP <-- KILLED PRECISION
             - Precision 23.70   Recall 98.19
             - TP 1952.  FP 6283.  TN 8693. FN 36
-        Age24Assay22_p2005/  7/13/2022 (all GXD papers since 2005)
+        Age24Assay22_p2005/  7/28/2022 (all GXD papers since 2005)
             - 112 FN->TP,
             - Precision 100   Recall 97.91
             - TP 19914.  FP 0.  TN 0. FN 426
+
+        Age25Assay22/  7/29/2022 (regular testset)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: after "d|day number", require (word) embryo(s)|of gestation
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 20 TP->FN, but 2377 FP->TN <-- RESTORED PRECISION
+            - Precision 33.09   Recall 97.18
+            - TP 1932.  FP 3906.  TN 11070. FN 56
+                        Improved P and R over Age23
+        Age25Assay22_p2005/  7/29/2022 (all GXD papers since 2005)
+            - Precision 100   Recall 97.49
+            - TP 19829.  FP 0.  TN 0. FN 511
