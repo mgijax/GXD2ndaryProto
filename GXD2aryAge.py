@@ -157,9 +157,10 @@ def getAgeMappings(context=210, fixContext=10):
                    r'(?:d|days?)(?:\s|-)(?:old(?:\s|-))?' + # d|day, opt'l old
                    r'(?:embryos?|mice|mouse|gestation))' +
                  r'|(?:' +        # days after fertilization
-                   r'days?(?:\s|-)after(?:\s|-)fertilization)' +
+                   r'days?(?:\s|-)(?:post|after)(?:\s|-)' +
+                   r'(?:fertilization|gestation))' +
                  r'|(?:' +        # ed|gd|gestational day
-                   r'(?:ed|gd|gestational(?:\s|-)days?))))' +
+                   r'(?:ed|gd|(?:embryonic|gestational)(?:\s|-)days?))))' +
 
             # (odd cases) Number w/ required decimals, followed by ...
             r'|(?:(?:1\d[.][27]5|\d[.][27]5' +    # 1-2 digs w/ 2 decimals
@@ -187,7 +188,8 @@ def getAgeMappings(context=210, fixContext=10):
                         # mesenchymal mesenchymes? ?
         r'\b(?:' +
             r'blastocysts?|blastomeres?|headfold|autopods?' +
-            r'|embryonic\slysates?|embryo\slysates?' +
+                        # embryo(nic) <opt word> lysates|extracts
+            r'|embryo(?:nic)?(?:\s|-)(?:[a-z]+(?:\s|-))?(?:lysates?|extracts?)'+
             r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
             r'|(?:limb(?:\s|-)?)buds?' +    # bud w/ limb in front
             r'|(?<!fin(?:\s|-))buds?' +     # bud w/o 'fin ' in front
@@ -205,8 +207,6 @@ def getAgeMappings(context=210, fixContext=10):
         r'\b(?:' +  # Do we want to add simply "embryos?"
             r'zygotes?' +
             r'|(?:mice|mouse)(?:\s|-)embryos?' +        # more general
-            #r'|development(?:\s|-)of(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?embryos?'+
-            #r'|developing(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?embryos?' +
             r'|development(?:al)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?stages?' +
             r'|development(?:al)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?ages?' +
             r'|embryo(?:nic)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?stages?' +
@@ -253,7 +253,7 @@ class MyTests(unittest.TestCase):
         self.assertEqual(tt.transformText(text), expt)
 
         text = "s E21 embryonic days 15-18 embryonic day 14 e"  # embryonic day
-        expt = "s E21 __mouse_age-18 __mouse_age e"
+        expt = "s E21 __mouse_age-__mouse_age 14 e"
         self.assertEqual(tt.transformText(text), expt)
 
         # e exclusions
@@ -304,8 +304,16 @@ class MyTests(unittest.TestCase):
         expt = "s __mouse_age, e"
         self.assertEqual(tt.transformText(text), expt)
 
+        text = "s 5.25 days post gestation, e"
+        expt = "s __mouse_age, e"
+        self.assertEqual(tt.transformText(text), expt)
+
         text = "s 5.25 ed, 7-GD, 8GD, 9.5 gestational day. e"
         expt = "s __mouse_age, __mouse_age, __mouse_age, __mouse_age. e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s 9.5 embryonic day. 10 embryo day, e"
+        expt = "s __mouse_age. 10 embryo day, e"
         self.assertEqual(tt.transformText(text), expt)
 
         # Numbers that require an approved decimal, followed by various

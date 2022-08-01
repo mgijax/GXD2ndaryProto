@@ -550,3 +550,17 @@ NewRules/
         Age25Assay22_p2005/  7/29/2022 (all GXD papers since 2005)
             - Precision 100   Recall 97.49
             - TP 19829.  FP 0.  TN 0. FN 511
+
+        Age26Assay22/  8/1/2022 (regular testset)
+            - embryo in full text, the age/cat2 in figure text
+            - Age: ee: embryonic optional_word lysate(s)|extract(s)
+                   eday: number days after|post fertilization|gestation
+                            (added "post" and "gestation")
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 1 FN->TP, but 28 TN->FP
+            - Precision 32.95   Recall 97.23
+            - TP 1933.  FP 3934.  TN 11042. FN 55
+        Age26Assay22_p2005/  8/1/2022 (all GXD papers since 2005)
+            - Precision 100   Recall 97.50
+            - 3 FN->TP
+            - TP 19832.  FP 0.  TN 0. FN 508
