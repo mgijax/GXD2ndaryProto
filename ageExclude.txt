@@ -21,20 +21,20 @@ transduct
 transfect
 transferred
 transplanted
-xenopus
+#xenopus
 zebra
 # below: spaces before so they match only at the beginning of words
 _arrested
 _cultur
 _fin bud
 _infect
-_inject
+#_inject
 _microinject
 _treat
 _vitrifi
 _vitro
 # below: spaces before and after so they don't match parts of words
-_bat_
+#_bat_
 _cat_
 _pig_
 _rat_
@@ -77,12 +77,12 @@ administered dose
 viral dose
 gy dose
 
-diabet
+#diabet
 resistance
 glucose
 transposon
 #pregnant female
-survival
+#survival
 implantation site
 #uteri
 #uterus
@@ -101,7 +101,7 @@ microfluid
 enhancer
 transduce
 vehicle
-gross
+#gross
 wound
 #pregnant
 primary mefs
@@ -120,7 +120,7 @@ dendritic spine
 social
 # Age15Assay22: experiment 5
 giemsa
-eosin
+#eosin
 h&e
 nissl
 luciferase

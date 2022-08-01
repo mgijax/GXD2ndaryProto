@@ -564,3 +564,16 @@ NewRules/
             - Precision 100   Recall 97.50
             - 3 FN->TP
             - TP 19832.  FP 0.  TN 0. FN 508
+
+        Age27Assay22/  8/1/2022 (regular testset)
+            - remove cat1Exclude: embryogenesis
+            - Age: remove ageExcludes: bat gross eosin survival xenopus
+                                        inject diabet
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 116 TN->FP
+            - Precision 32.31   Recall 97.23
+            - TP 1933.  FP 4050.  TN 10926. FN 55
+        Age27Assay22_p2005/  8/1/2022 (all GXD papers since 2005)
+            - Precision 100   Recall 97.65
+            - 30 FN->TP
+            - TP 19862.  FP 0.  TN 0. FN 478
