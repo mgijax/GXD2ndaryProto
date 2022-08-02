@@ -16,6 +16,7 @@
                Try1Details.txt
                Try1*Matches.txt
                Try1Summary.txt
+           Summary and other info is also written to stdout.
 '''
 import sys
 import os
@@ -90,7 +91,8 @@ class TextMappingFromStringsWordBoundaries (TextMappingFromStrings):
 class SimpleTextMappingFromStrings (TextMappingFromStrings):
 
     def _str2regex(self, s):
-        """ replace spaces w/ r'\s', no forced word boundaries
+        """ replace spaces w/ r'\s' to match any whitespace,
+            no forced word boundaries
         """
         parts = s.split()
         regex = r'\s'.join(map(re.escape, parts))
@@ -132,18 +134,6 @@ class GXDrouter (object):
         # mapping of lower case exclude terms to what to replace them with
         self.cat1TermsDict   = {x.lower() : x.upper() for x in self.cat1Terms}
         self.cat1ExcludeDict = {x.lower() : x.upper() for x in self.cat1Exclude}
-
-        # Set up for using TextTransformer - skipping for now
-        #self.cat1ExcludeMapping = SimpleTextMappingFromStrings(
-        #                                'embryoExclude',
-        #                                self.cat1Exclude, lambda x: x.upper(),
-        #                                context=0)
-        #self.cat1Mapping = TextMapping('embryo', r'(?:embryo)',
-        #                                lambda x: x.upper(), context=0)
-        #self.cat1TextTransformer = TextTransformer([
-        #    self.cat1ExcludeMapping,
-        #    self.cat1Mapping,
-        #    ])
         return
 
     def _gotCat1(self, text):
@@ -155,14 +145,6 @@ class GXDrouter (object):
         newText, self.cat1Matches = findMatches(newText,
                             self.cat1TermsDict, 'cat1', self.numChars)
         return len(self.cat1Matches)
-        # use TextTransformer - much slower, should investigate, 
-        #tt = self.cat1TextTransformer
-        #tt.resetMatches()
-        #newText = tt.transformText(text)
-        #matchRcds = self.cat1Mapping.getMatchRcds()
-        #return len(matchRcds)
-        ##if newText.find('embryo') == -1: return False
-        ##else: return True
 
     def _buildCat2Detection(self):
         # Set up for using text comparisons
@@ -202,8 +184,7 @@ class GXDrouter (object):
         # get ageMatches and throw away "fix" matches
         ageMatches = [ m for m in self.ageTextTransformer.getMatches()
                                         if not m.matchType.startswith('fix')] 
-
-        # check preText and postText to detect exclude age matches
+        # check for ageExclude matches
         for m in ageMatches:
             if self._isGoodAgeMatch(m):
                 self.ageMatches.append(m)
@@ -216,45 +197,53 @@ class GXDrouter (object):
     def _isGoodAgeMatch(self, m # MatchRcd
                         ):
         """ Return True if this looks like a good mouse age match.
-            (i.e., no age exclusion terms found in the pre/post text)
+            (i.e., no age exclusion terms found in the match or pre/post text)
             If not a good mouse age, return False and:
-                Modify m.preText or m.postText to highlight the exclude term
-                    that indicates it is not a good match,
+                Modify m.matchText, m.preText, or m.postText to highlight the
+                    exclude term that indicates it is not a good match,
                 Set m.matchType to 'excludeAge'
         """
         goodAgeMatch = True     # assume no exclusion terms detected
 
+        # Search m.matchText for age exclusion terms
+        newText = self.ageExcludeTextTransformer.transformText(m.matchText)
+        excludeMatches = self.ageExcludeTextTransformer.getMatches()
+
+        for em in excludeMatches:       # for exclusion matches in matchText
+            newMText = m.matchText[:em.start] + em.replText + \
+                                                        m.matchText[em.end:]
+            m.matchText = newMText
+            goodAgeMatch = False
+            break
+        self.ageExcludeTextTransformer.resetMatches()
+
         # Search m.preText for age exclusion terms
-        #newText, preTextMatches = findMatches(m.preText, self.ageExcludeDict,
-        #                                                       'excludeAge', 0)
         newText = self.ageExcludeTextTransformer.transformText(m.preText)
         excludeMatches = self.ageExcludeTextTransformer.getMatches()
-        self.ageExcludeTextTransformer.resetMatches()
 
         for em in excludeMatches:       # for exclusion matches in preText
             if not self.ageExcludeBlockRE.search(m.preText[em.end:]):
                 # no intervening text found that should block the exclude
-                newPreText = m.preText[:em.start] + em.replText + \
+                newPText = m.preText[:em.start] + em.replText + \
                                                             m.preText[em.end:]
-                m.preText = newPreText
+                m.preText = newPText
                 goodAgeMatch = False
                 break
+        self.ageExcludeTextTransformer.resetMatches()
 
         # Search m.postText for age exclusion terms
-        #newText, postTextMatches = findMatches(m.postText, self.ageExcludeDict,
-        #                                                       'excludeAge', 0)
         newText = self.ageExcludeTextTransformer.transformText(m.postText)
         excludeMatches = self.ageExcludeTextTransformer.getMatches()
-        self.ageExcludeTextTransformer.resetMatches()
 
         for em in excludeMatches:      # for exclusion matches in postText
             if not self.ageExcludeBlockRE.search(m.postText[:em.start]):
                 # no intervening text found that should block the exclude
-                newPostText = m.postText[:em.start] + em.replText + \
+                newPText = m.postText[:em.start] + em.replText + \
                                                             m.postText[em.end:]
-                m.postText = newPostText
+                m.postText = newPText
                 goodAgeMatch = False
                 break
+        self.ageExcludeTextTransformer.resetMatches()
 
         if not goodAgeMatch:
             m.matchType = 'excludeAge'
@@ -299,6 +288,8 @@ class GXDrouter (object):
             return 'No'
 
     def getExplanation(self):
+        """ Return text that summarizes this routing algorithm
+        """
         output = ''
         output += 'Category1 terms in full text:\n'
         for t in sorted(self.cat1TermsDict.keys()):
@@ -349,6 +340,7 @@ class GXDrouter (object):
     def getCat2Excludes(self): return self.cat2Excludes
 
     def getPosMatches(self):
+        """ Return list of positive matches for most recent article """
         return self.cat1Matches + self.ageMatches + self.cat2Matches
 
     def getExcludeMatches(self):
@@ -358,8 +350,7 @@ class GXDrouter (object):
         all = self.cat1Matches + self.cat1Excludes + self.ageMatches + \
                 self.ageExcludes + self.cat2Matches + self.cat2Excludes
         return all
-
-#-----------------------------------
+# end class GXDrouter -----------------------------------
 
 def findMatches(text, termDict, matchType, ctxLen):
     """ find all matches in text for terms in the termDict:
@@ -371,10 +362,10 @@ def findMatches(text, termDict, matchType, ctxLen):
         so if some terms are substrings of other terms, which one matches
         first is undefined.
     """
-    resultText = text           # resulting text if there are no terms to match
+    resultText = text           # resulting text if termDict is empty
 
-    findText = text.replace('\n', ' ')  # so we can match terms across lines
-                                        # ..this is the text to search in.
+    findText = text.replace('\n', ' ')  # So we can match terms across lines
+                                        # This is the text to search in.
 
     matchRcds = []                      # the matches to return
 
@@ -413,6 +404,7 @@ def findMatches(text, termDict, matchType, ctxLen):
     return resultText, matchRcds
 #-----------------------------------
 
+# Formatting for the output reports
 routingFieldSep = '|'
 routingHdr = routingFieldSep.join(['ID',
                     'knownClassName',
