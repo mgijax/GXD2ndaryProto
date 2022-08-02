@@ -577,3 +577,27 @@ NewRules/
             - Precision 100   Recall 97.65
             - 30 FN->TP
             - TP 19862.  FP 0.  TN 0. FN 478
+
+        Age28Assay22/  8/1/2022 (regular testset)
+            - remove cat1Exclude: embryogenesis
+            - Age: change exclude logic: check for exclude term in matchText
+                    AND no exclude if matchText contains mice|mouse
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 138 TN->FP        -- HURTS PRECISION compared to Age27
+            - Precision 31.61   Recall 97.38
+            - TP 1936.  FP 4188.  TN 10788. FN 52
+
+        Age29Assay22/  8/1/2022 (regular testset)
+            - remove cat1Exclude: embryogenesis
+            - Age: change exclude logic: check for exclude term in matchText
+                    REMOVE: no exclude if matchText contains mice|mouse
+            - for 382 journals w/ no GXD papers, set routed = No
+            - 1 FP->TN        -- compared to Age27
+                    tiny, tiny help, but the logic makes sense.
+                    Avoids several "5 day pig embryo" terms, etc.
+            - Precision 32.31   Recall 97.23
+            - TP 1933.  FP 4049.  TN 10927. FN 55
+        Age29Assay22_p2005/  8/1/2022 (all GXD papers since 2005)
+            - Precision 100   Recall 97.65
+            - no change compared to Age27
+            - TP 19862.  FP 0.  TN 0. FN 478
