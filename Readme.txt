@@ -472,17 +472,13 @@ NewRules/
             - TP 3288.  FP 0.  TN 0. FN 73
 
         Age20Assay22_j/  7/6/2022 (using shortened skipjournals from post2005)
-            - embryo in full text, the age/cat2 in figure text
             - Cat2: includes "-gal stain" and "-galactosidase stain"
-             -for 382 journals w/ no GXD papers, set routed = No
             - 276 TN->FP
             - Precision 35.71   Recall 96.13
             - TP 1911.  FP 3441.  TN 11535. FN 77
 
         Age21Assay22/  7/12/2022 (regular testset)
-            - embryo in full text, the age/cat2 in figure text
             - Age: reworked DPC, allow '.'s and d number pc
-            - for 382 journals w/ no GXD papers, set routed = No
             - no new FP - good (same as Age20Assay22_j)
             - Precision 35.71   Recall 96.13
             - TP 1911.  FP 3441.  TN 11535. FN 77
@@ -492,11 +488,9 @@ NewRules/
             - TP 19704.  FP 0.  TN 0. FN 636
 
         Age22Assay22/  7/13/2022 (regular testset)
-            - embryo in full text, the age/cat2 in figure text
             - Age: ee: allow '-'s (e.g., 1-cell-embryo)
                 Developmental: allow '-'s. Add: mice embryo(s),
                     age|stage of embryo, developmental time course
-            - for 382 journals w/ no GXD papers, set routed = No
             - 14 new TP, 235 new FP
             - Precision 33.18   Recall 96.83
             - TP 1925.  FP 3876.  TN 11100. FN 63
@@ -506,10 +500,8 @@ NewRules/
             - TP 19794.  FP 0.  TN 0. FN 546
 
         Age23Assay22/  7/13/2022 (regular testset)
-            - embryo in full text, the age/cat2 in figure text
             - Age: add misc age terms: genepaint, time series,
                 allen brain|atlas|institute, embryo mouse brain
-            - for 382 journals w/ no GXD papers, set routed = No
             - 1 new TP, 100 new FP (not a great trade off)
                 Decision: genepaint is good to keep. Lose Allen & time series.
             - Precision 32.63   Recall 96.88
@@ -520,7 +512,6 @@ NewRules/
             - TP 19802.  FP 0.  TN 0. FN 538
 
         Age24Assay22/  7/28/2022 (regular testset)
-            - embryo in full text, the age/cat2 in figure text
             - Age: reorg of eday:
                 generalized #'s, 1-2dig followed by optional .0 .5 .25 .75
                 allow space or '-' between terms.
@@ -530,7 +521,6 @@ NewRules/
                     ED|GD|gestional day, day(s) after fertilization
                 allow #.decimal followed by "day(s) old"|embryo(s)
                 remove: allen brain|atlas|institute, time series
-            - for 382 journals w/ no GXD papers, set routed = No
             - 26 FN->TP, but 2307 TN->FP <-- KILLED PRECISION
             - Precision 23.70   Recall 98.19
             - TP 1952.  FP 6283.  TN 8693. FN 36
@@ -540,9 +530,7 @@ NewRules/
             - TP 19914.  FP 0.  TN 0. FN 426
 
         Age25Assay22/  7/29/2022 (regular testset)
-            - embryo in full text, the age/cat2 in figure text
             - Age: after "d|day number", require (word) embryo(s)|of gestation
-            - for 382 journals w/ no GXD papers, set routed = No
             - 20 TP->FN, but 2377 FP->TN <-- RESTORED PRECISION
             - Precision 33.09   Recall 97.18
             - TP 1932.  FP 3906.  TN 11070. FN 56
@@ -552,37 +540,33 @@ NewRules/
             - TP 19829.  FP 0.  TN 0. FN 511
 
         Age26Assay22/  8/1/2022 (regular testset)
-            - embryo in full text, the age/cat2 in figure text
             - Age: ee: embryonic optional_word lysate(s)|extract(s)
                    eday: number days after|post fertilization|gestation
                             (added "post" and "gestation")
-            - for 382 journals w/ no GXD papers, set routed = No
             - 1 FN->TP, but 28 TN->FP
             - Precision 32.95   Recall 97.23
             - TP 1933.  FP 3934.  TN 11042. FN 55
         Age26Assay22_p2005/  8/1/2022 (all GXD papers since 2005)
-            - Precision 100   Recall 97.50
             - 3 FN->TP
+            - Precision 100   Recall 97.50
             - TP 19832.  FP 0.  TN 0. FN 508
 
         Age27Assay22/  8/1/2022 (regular testset)
             - remove cat1Exclude: embryogenesis
             - Age: remove ageExcludes: bat gross eosin survival xenopus
                                         inject diabet
-            - for 382 journals w/ no GXD papers, set routed = No
             - 116 TN->FP
             - Precision 32.31   Recall 97.23
             - TP 1933.  FP 4050.  TN 10926. FN 55
         Age27Assay22_p2005/  8/1/2022 (all GXD papers since 2005)
-            - Precision 100   Recall 97.65
             - 30 FN->TP
+            - Precision 100   Recall 97.65
             - TP 19862.  FP 0.  TN 0. FN 478
 
         Age28Assay22/  8/1/2022 (regular testset)
             - remove cat1Exclude: embryogenesis
             - Age: change exclude logic: check for exclude term in matchText
                     AND no exclude if matchText contains mice|mouse
-            - for 382 journals w/ no GXD papers, set routed = No
             - 138 TN->FP        -- HURTS PRECISION compared to Age27
             - Precision 31.61   Recall 97.38
             - TP 1936.  FP 4188.  TN 10788. FN 52
@@ -591,13 +575,62 @@ NewRules/
             - remove cat1Exclude: embryogenesis
             - Age: change exclude logic: check for exclude term in matchText
                     REMOVE: no exclude if matchText contains mice|mouse
-            - for 382 journals w/ no GXD papers, set routed = No
             - 1 FP->TN        -- compared to Age27
                     tiny, tiny help, but the logic makes sense.
                     Avoids several "5 day pig embryo" terms, etc.
             - Precision 32.31   Recall 97.23
             - TP 1933.  FP 4049.  TN 10927. FN 55
         Age29Assay22_p2005/  8/1/2022 (all GXD papers since 2005)
-            - Precision 100   Recall 97.65
             - no change compared to Age27
+            - Precision 100   Recall 97.65
             - TP 19862.  FP 0.  TN 0. FN 478
+
+        Age29Assay23/  8/3/2022 (regular testset)
+            - Cat2: add alexa flour, confocal, wish
+            - 14 TN->FP         - only "confocal" contributed to new routings
+            - Precision 32.24   Recall 97.23
+            - TP 1933.  FP 4063.  TN 10913. FN 55
+        Age29Assay23_p2005/  8/3/2022 (all GXD papers since 2005)
+            - 5 FN->TP,   - 3 from "confocal", 2 from "wish"
+            - Precision 100   Recall 97.67
+            - TP 19867.  FP 0.  TN 0. FN 473
+
+        Age29Assay24/  8/3/2022 (regular testset)
+            - Cat2: add view terms
+            - 2 FN->TP, 34 TN->FP
+            - Precision 32.08   Recall 97.33
+            - TP 1935.  FP 4097.  TN 10879. FN 53
+        Age29Assay24_p2005/  8/3/2022 (all GXD papers since 2005)
+            - 11 FN->TP,
+            - Precision 100   Recall 97.73
+            - TP 19878.  FP 0.  TN 0. FN 462
+
+        Age29Assay25/  8/3/2022 (regular testset)
+            - Cat2: add stain terms
+            - 7 TN->FP
+            - Precision 32.04   Recall 97.33
+            - TP 1935.  FP 4104.  TN 10872. FN 53
+        Age29Assay25_p2005/  8/4/2022 (all GXD papers since 2005)
+            - 5 FN->TP,
+            - Precision 100   Recall 97.75
+            - TP 19883.  FP 0.  TN 0. FN 457
+
+        Age29Assay26/  8/4/2022 (regular testset)
+            - Cat2: add "expression at" terms
+            - 1 FN->TP, 42 TN->FP
+            - Precision 31.84   Recall 97.38
+            - TP 1936.  FP 4145.  TN 10831. FN 52
+        Age29Assay26_p2005/  8/4/2022 (all GXD papers since 2005)
+            - 7 FN->TP,
+            - Precision 100   Recall 97.79
+            - TP 19890.  FP 0.  TN 0. FN 450
+
+        NC1Age29Assay26/  8/4/2022 (regular testset)
+            - Cat1: add "the expression of" as cat1 term <-------------
+            - 29 TN->FP
+            - Precision 31.69   Recall 97.38
+            - TP 1936.  FP 4174.  TN 10802. FN 52
+        NC1Age29Assay26_p2005/  8/4/2022 (all GXD papers since 2005)
+            - 55 FN->TP,
+            - Precision 100   Recall 98.06
+            - TP 19945.  FP 0.  TN 0. FN 395

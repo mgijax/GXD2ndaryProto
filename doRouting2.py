@@ -510,7 +510,7 @@ def process():
                             if not line.startswith('#') and line.strip() != '']
 
     # Category 1 terms:  just 'embryo'
-    cat1Terms = ['embryo']
+    cat1Terms = ['embryo', 'the expression of']
 
     # get cat1Exclude terms
     cat1Exclude = [line.strip() for line in open(CAT1EXCLUDEFILENAME, 'r') \
