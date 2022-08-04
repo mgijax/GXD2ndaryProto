@@ -114,6 +114,7 @@ else
 fi
 
 # Finally, diff the two sets of cleaned up matches
+echo Diffing matches $M1 to $M2 for $NumIDs $predType in $R1 not in $R2
 DiffOutput=tmp.$$.diff.out
 diff $M1WantedMatchesClean $M2WantedMatchesClean > $DiffOutput
 
@@ -122,6 +123,7 @@ cat $DiffOutput
 # output matching text and counts of refs that were affected.
 # This only works w/o --context output and not on --age
 #  would need to make this smarter for those options
+echo Summarizing match text and number of articles they appear in
 grep "<" $DiffOutput | sort -u | cut -f 3 | sort | uniq -c
 
 if [ "$keepTmpFiles" -eq "0" ]; then
