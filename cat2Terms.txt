@@ -1,6 +1,6 @@
 # post 2005 cat2 experiments
 # Assay23
-alexa flour
+alexa fluor
 wish
 confocal
 # Assay24

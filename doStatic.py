@@ -5,27 +5,14 @@
   Inputs:  Sample file of GXD routed (classified) reference records.
             See refSample.py for the fields of these records.
   
-  Outputs: a file of Routing assignments, 1 line for each reference
-           a file of "details" for each routing assignment, e.g.,
-                what term matches there were for each reference (+ context)
-           a file of term matches across the whole corpus
-               Positive words: context & counts
-               Exclude words: counts
-           a summary of Precision and Recall
-
-           You pass filename base prefix, e.g., 'Try1' as a cmd line param
-           and the output files are named:
-               Try1Routings.txt
-               Try1Details.txt
-               Try1Matches.txt
-               Try1Summary.txt
+  Outputs: Static analysis report to stdout.
 '''
 import sys
 import os
 import time
 import argparse
 import unittest
-import GXDrefSample as SampleLib
+import GXD2aryRefSample as SampleLib
 from sklearnHelperLib import predictionType
 #from utilsLib import removeNonAscii
 #-----------------------------------
@@ -37,7 +24,8 @@ sampleObjType = SampleLib.ClassifiedRefSample
 def getArgs():
 
     parser = argparse.ArgumentParser( \
-        description='do static text analyisis for GXD 2ndary triage proto..')
+        description='do static text analyisis for GXD 2ndary triage proto. ' +
+        'Write report to stdout.')
 
     parser.add_argument('sampleFileName', action='store',
         help="the sample file to read. (use one preprocessed for figtext?)")
@@ -46,15 +34,11 @@ def getArgs():
         help="file of exclude terms or 'none'")
 
     parser.add_argument('terms', nargs='+',
-        help="terms that you want analysis for")
+        help="terms that you want analysis for. '-' to read terms from stdin")
 
     parser.add_argument('-l', '--limit', dest='nToDo',
         required=False, type=int, default=0,            # 0 means ALL
         help="only process this many references. Default is no limit")
-
-    #parser.add_argument('--textlength', dest='maxTextLength',
-    #    type=int, required=False, default=None,
-    #    help="only include the 1st n chars of text fields (for debugging)")
 
     parser.add_argument('-q', '--quiet', dest='verbose', action='store_false',
         required=False, help="skip helpful messages to stderr")
@@ -84,15 +68,6 @@ def doAutomatedTests():
 
 class MyTests(unittest.TestCase):
     pass
-#    def test_getText4Ref(self):
-#        t = getText4Ref('11943') # no text
-#        self.assertEqual(t, '')
-#
-#        t = getText4Ref('361931') # multiple sections
-#        expText = 'lnk/ mice.\n\n\n\nfig. 5.' # boundry body-author fig legends
-#        found = t.find(expText)
-#        self.assertNotEqual(found, -1)
-
 #-----------------------------------
 
 def main():

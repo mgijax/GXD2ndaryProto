@@ -11,7 +11,7 @@
                 legends.
 
   Outputs:      Delimited file to specified output file.
-                See GXDrefSample.ClassifiedSample for output format
+                See GXD2aryRefSample.ClassifiedSample for output format
 '''
 import sys
 import os
@@ -22,7 +22,7 @@ import unittest
 import db
 import Pdfpath
 import extractedTextSplitter
-import GXDrefSample as SampleLib
+import GXD2aryRefSample as SampleLib
 from utilsLib import removeNonAscii
 
 #-----------------------------------
@@ -431,11 +431,12 @@ def doAutomatedTests():
 
 class MyTests(unittest.TestCase):
     def test_getText4Ref(self):
-        t = getText4Ref('11943') # no text
+        t = getText4Ref_fromDB('11943') # no text. MGI:60234
         self.assertEqual(t, '')
 
-        t = getText4Ref('361931') # multiple sections
-        expText = 'lnk/ mice.\n\n\n\nfig. 5.' # boundry body-author fig legends
+        t = getText4Ref_fromDB('361931') # multiple sections. MGI:6295212
+        expText = 'lnk/ mice.\n\nfig. 5.'  # boundry between body...
+                                           # ...and author fig legends sections
         found = t.find(expText)
         self.assertNotEqual(found, -1)
 
