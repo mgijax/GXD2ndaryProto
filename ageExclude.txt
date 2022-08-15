@@ -139,8 +139,13 @@ opossum
 hpf
 tadpole
 turtle
+hamilton and hamburger
 hamburger and hamilton
-hh##
+hamburger hamilton
+hamburger-hamilton
+_hh##_
+_hh ##_
+_hh-##_
 # Age17Assay22: experiment 7
 dox
 tamoxifen

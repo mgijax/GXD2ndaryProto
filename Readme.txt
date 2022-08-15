@@ -634,3 +634,34 @@ NewRules/
             - 55 FN->TP,
             - Precision 100   Recall 98.06
             - TP 19945.  FP 0.  TN 0. FN 395
+
+        NC1Age30Assay27/  8/10/2022 (regular testset)
+            - cat2: fix alexa fluor
+            - AgeExclude logic: support "# _" patterns, hamburger tweaks
+            - no changes
+            - Precision 31.69   Recall 97.38
+            - TP 1936.  FP 4174.  TN 10802. FN 52
+        NC1Age30Assay27_p2005/  8/10/2022 (all GXD papers since 2005)
+            - no changes
+            - Precision 100   Recall 98.06
+            - TP 19945.  FP 0.  TN 0. FN 395
+
+        NC1Age31Assay27/  8/10/2022 (regular testset)
+            - AgeExclude logic: ';' no longer blocks age exclusion
+            - 1 TP->FN,  21 FP->TN
+            - Precision 31.78   Recall 97.33
+            - TP 1935.  FP 4153.  TN 10823. FN 53
+        NC1Age31Assay27_p2005/  8/10/2022 (all GXD papers since 2005)
+            - 6 TP->FN
+            - Precision 100   Recall 98.06
+            - TP 19939.  FP 0.  TN 0. FN 401
+
+        NC1Age32Assay27/  8/10/2022 (regular testset)
+            - AgeExclude logic: no blocking: '; ', and '. ' before fig & et al
+            - 7 FP->TN
+            - Precision 31.82   Recall 97.33
+            - TP 1935.  FP 4146.  TN 10830. FN 53
+        NC1Age32Assay27_p2005/  8/10/2022 (all GXD papers since 2005)
+            - no change
+            - Precision 100   Recall 98.06
+            - TP 19939.  FP 0.  TN 0. FN 401

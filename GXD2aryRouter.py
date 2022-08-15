@@ -22,11 +22,13 @@
                 )
     ### to route a reference
     routing =  router.routeThisRef(refID, text, journal)
-    if routing == 'yes':
+    if routing == 'Yes':
         # route it to GXD...
 
         # to get all the utilsLib.MatchRcds that describe why it was routed
         matches = router.getAllMatches()
+
+        # (other subsets of getMatches() are supported too)
     else:
         # don't route it to GXD
 
@@ -42,6 +44,15 @@ from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransfor
 #-----------------------------------
 
 class TextMappingFromAgeExcludeTerms (TextMappingFromStrings):
+    """
+    Is a: TextMapping for matching age exclusion terms
+    Does: converts ageExclude vocab terms (a list of strings) to regex's with
+            ' ' converted to r'\s' (any whitespace)
+            '_' converted to r'\b' (word boundary)
+            '#' converted to r'\d' (any digit)
+          This gives the curators to a way to make simple regex's from vocab
+          terms.
+    """
 
     def _str2regex(self, s):
         """ Return re.escape(s) string with
@@ -57,6 +68,14 @@ class TextMappingFromAgeExcludeTerms (TextMappingFromStrings):
 #-----------------------------------
 
 class GXDrouter (object):
+    """
+    Is a: object that knows how to route references for GXD 2ary triage
+    Has : vocabularies (lists of strings)
+            see __init__() below
+    Does: route a reference (return 'Yes' or 'No') given the reference text
+            and its journal name.
+    jak: need more info here
+    """
 
     def __init__(self,
                 skipJournals,   # [journal names] whose articles don't route
@@ -131,8 +150,10 @@ class GXDrouter (object):
             # re to detect strings that would prohibit an age exclude term
             #   from causing the exclusion if they occur between
             #   the exclude term and the matching age text:
-            #     '; ' or  '. ' or '\n\n' (paragraph boundary)
-        self.ageExcludeBlockRE = re.compile(r'[;.]\s|\n\n')
+            #      '. ' not preceeded by 'fig. ' or '\n\n' (paragraph boundary)
+        #self.ageExcludeBlockRE = re.compile(r'[;.]\s|\n\n') # original
+        #self.ageExcludeBlockRE = re.compile(r'[.]\s|\n\n')  # no ';'
+        self.ageExcludeBlockRE = re.compile(r'[.]\s')  # just .<whitespace>
 
     def _gotMouseAge(self, text):
         """ Return True if we find mouse age terms in text
@@ -180,7 +201,7 @@ class GXDrouter (object):
         excludeMatches = self.ageExcludeTextTransformer.getMatches()
 
         for em in excludeMatches:       # for exclusion matches in preText
-            if not self.ageExcludeBlockRE.search(m.preText[em.end:]):
+            if not self.hasAgeExcludeBlock(m.preText[em.end:]):
                 # no intervening text found that should block the exclude
                 newPText = m.preText[:em.start] + em.replText + \
                                                             m.preText[em.end:]
@@ -194,7 +215,7 @@ class GXDrouter (object):
         excludeMatches = self.ageExcludeTextTransformer.getMatches()
 
         for em in excludeMatches:      # for exclusion matches in postText
-            if not self.ageExcludeBlockRE.search(m.postText[:em.start]):
+            if not self.hasAgeExcludeBlock(m.postText[:em.start]):
                 # no intervening text found that should block the exclude
                 newPText = m.postText[:em.start] + em.replText + \
                                                             m.postText[em.end:]
@@ -207,6 +228,33 @@ class GXDrouter (object):
             m.matchType = 'excludeAge'
         return goodAgeMatch
     
+    def hasAgeExcludeBlock(self, text):
+        """ Return True/False if text contains ageExclude blocking text
+        """
+        # original way
+        #if self.ageExcludeBlockRE.search(text):
+        #    return True
+        #else:
+        #    return False
+
+        # new way...
+
+        if text.find('\n\n') > -1:      # has paragraph boundary
+            return True
+
+        # look for '. ' that is not part of a common abbreviation
+        parts = self.ageExcludeBlockRE.split(text)
+        parts = parts[:-1]      # remove last part that doesn't end in '. '
+        for part in parts:
+            if part.endswith(' fig')     \
+               or part.endswith('\nfig') \
+               or part.endswith('et al'):
+               continue         # no block found yet
+            else:
+               return True     # found '. '
+
+        return False
+
     def routeThisRef(self, refID, text, journal):
         """ Given info about a reference, return "Yes" or "No"
             Assumes the text of each reference is full text.
@@ -279,8 +327,10 @@ class GXDrouter (object):
         output += 'Mouse age exclude regular expression:\n'
         output += self.ageExcludeTextTransformer.getBigRegex() + '\n'
 
-        output += 'Mouse age exclude blocking regular expression:\n'
-        output += self.ageExcludeBlockRE.pattern + '\n'
+        #output += 'Mouse age exclude blocking regular expression:\n'
+        #output += self.ageExcludeBlockRE.pattern + '\n'
+        output += 'Mouse age exclude blocking logic::\n'
+        output += 'paragraph boundary or "." not following "fig" nor "et al"\n'
 
         output += 'Route=No for these journals:\n'
         for t in sorted(self.skipJournals):
@@ -381,6 +431,10 @@ class AgeExcludeTests(unittest.TestCase):
         ageExclude = ['_hh##_', 'hamburger hamilton']
         self.gr = GXDrouter([], [], [], ageExclude, [], [], numChars=30)
 
+    # Note the "fig n" text is needed to force the text to be included
+    #  as figure text in the routeThisRef() method.
+    # Any paragraph w/o fig or figure will be omitted when looking for ages.
+
     def test_nullTest(self):
         # need '\n\nfig n.' for this to be treated as figure text
         doc = '\n\nfig 1. some text E14.5 more text'    # no age exclusion
@@ -392,6 +446,13 @@ class AgeExcludeTests(unittest.TestCase):
     def test_regexChars1(self):
         # test _hh##_ matches digits and word boundaries and causes exclusion
         doc = '\n\nfig 1. (hh23) some text E14.5 more text' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'excludeAge')
+
+        # test _hh##_ matches digits and word boundaries and causes exclusion
+        doc = '\n\nfig 1. some text E14.5 more text (hh46)' 
         routing = self.gr.routeThisRef('id1', doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
@@ -411,21 +472,91 @@ class AgeExcludeTests(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
+    def test_hasAgeExcludeBlock(self):
+        # test no blocks
+        doc = 'fig 1.1 (hh23)\nfig 2 some text E14.5 more text' 
+        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
+
+        # test '\n\n' blocks
+        doc = 'fig 1.1 (hh23)\n\nfig 2 some text E14.5 more text' 
+        self.assertTrue(self.gr.hasAgeExcludeBlock(doc))
+
+        # test '; ' does not block
+        doc = 'fig 1.1 (hh23); fig 2 some text E14.5 more text' 
+        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
+
+        # test '. ' blocks
+        doc = 'fig 1.1 (hh23). fig 2 some text E14.5 more text' 
+        self.assertTrue(self.gr.hasAgeExcludeBlock(doc))
+
+        # test 'fig. ' does not block
+        doc = 'fig 1.1 (hh23) fig. 2 some text E14.5 more text' 
+        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
+
+        # test 'et al. ' does not block
+        doc = 'fig 1.1 (hh23) et al. some text E14.5 more text' 
+        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
+
     def test_excludeBlocking(self):
-        # test '.' between exclude term and age text blocks the exclusion
-        doc = '\n\nfig 1. (hh23). some text E14.5 more text' 
+        # test '\n\n' between exclude term & age text blocks the exclusion
+        doc = '\n\nfig 1. (hh23)\n\nfig 2 some text E14.5 more text' 
         routing = self.gr.routeThisRef('id1', doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
 
-        # test ';' between exclude term and age text blocks the exclusion
+        # test '\n\n' between exclude term & age text blocks the exclusion
+        doc = '\n\nfig 1. some text E14.5 more text\n\n fig 2 (hh23)' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'eday')
+
+        # test '. ' between exclude term & age text blocks the exclusion
+        doc = '\n\nfig 1. (hh23).\n some text E14.5 more text' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'eday')
+
+        # test '. ' between exclude term & age text blocks the exclusion
+        doc = '\n\nfig 1. some text E14.5 more text. new sentence hh46.' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'eday')
+
+        # test 'fig.' between exclude term & age text not block the exclusion
+        doc = '\n\nfig 1. (hh23) fig. 54, some text E14.5 more text' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'excludeAge')
+
+        # test 'fig.' between exclude term & age text not block the exclusion
+        doc = '\n\nfig 1. some text E14.5 more text fig.\n54 hh33' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'excludeAge')
+
+        # test 'et al.' between exclude term & age text not block the exclusion
+        doc = '\n\nfig 1. some text E14.5 more text et al. 54 hh33' 
+        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        matches = self.gr.getAllMatches()
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].matchType, 'excludeAge')
+
+        # test ';' between exclude term & age text does not block the exclusion
         doc = '\n\nfig 1. (hh23); some text E14.5 more text' 
         routing = self.gr.routeThisRef('id1', doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
+        self.assertEqual(matches[0].matchType, 'excludeAge')
 
+        #m = matches[0]
+        #print()
+        #print("%s: '%s' '%s' '%s'" % (m.matchType, m.preText, m.matchText, m.postText))
 #-----------------------------------
 
 if __name__ == "__main__":
