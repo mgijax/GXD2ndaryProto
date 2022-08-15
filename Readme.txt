@@ -653,7 +653,7 @@ NewRules/
             - TP 1935.  FP 4153.  TN 10823. FN 53
         NC1Age31Assay27_p2005/  8/10/2022 (all GXD papers since 2005)
             - 6 TP->FN
-            - Precision 100   Recall 98.06
+            - Precision 100   Recall 98.03
             - TP 19939.  FP 0.  TN 0. FN 401
 
         NC1Age32Assay27/  8/10/2022 (regular testset)
@@ -663,5 +663,15 @@ NewRules/
             - TP 1935.  FP 4146.  TN 10830. FN 53
         NC1Age32Assay27_p2005/  8/10/2022 (all GXD papers since 2005)
             - no change
-            - Precision 100   Recall 98.06
+            - Precision 100   Recall 98.03
+            - TP 19939.  FP 0.  TN 0. FN 401
+
+        NC1Age32Assay28/  8/15/2022 (regular testset)
+            - Cat2 tweaks: remove low hit terms, add wmish
+            - 14 FP->TN
+            - Precision 31.89   Recall 97.33
+            - TP 1935.  FP 4132.  TN 10844. FN 53
+        NC1Age32Assay28_p2005/  8/15/2022 (all GXD papers since 2005)
+            - no change
+            - Precision 100   Recall 98.03
             - TP 19939.  FP 0.  TN 0. FN 401
