@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# THIS IS OUT OF DATE.
+# This was an attempt to automate part of analysis workflow where I'd
+#  1. Pull out references from a routing file of a particular type (e.g., FN)
+#  2. Create a new testSet file of just those references
+#  3. Run the routing algorithm to get match files for those refs.
+# Now that match files contain info about the reference and the routing, this 
+#  is not needed.
+
 # create a file of samples from a given prediction type (as specified in the
 #  Routings.txt file
 #

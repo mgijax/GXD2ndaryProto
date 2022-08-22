@@ -2,34 +2,33 @@
 '''
   Purpose: Apply a potential GXD secondary triage routing algorithm & evaluate.
 
-  Inputs:  Sample file of GXD routed (classified) reference records.
+  Inputs:  (stdin) Sample file of GXD routed (classified) reference records.
             See refSample.py for the fields of these records.
+
+            A bunch of vocab (text) files with fixed filenames.
   
   Outputs: a file of Routing assignments, 1 line for each reference
-           a file of "details" w/ a summary of what terms were searched for.
+           a "Details" file: a summary of the logic & vocab terms searched for.
+           a Summary file of Precision and Recall
            files of matches (see Output filenames below)
-           a summary file of Precision and Recall
 
-           You pass filename base prefix, e.g., 'Try1' as a cmd line param
+           You pass a filename base prefix, e.g., 'Try1/' as a cmd line param
            and the output files are named:
-               Try1Routings.txt
-               Try1Details.txt
-               Try1*Matches.txt
-               Try1Summary.txt
+               Try1/Routings.txt
+               Try1/Details.txt
+               Try1/*Matches.txt
+               Try1/Summary.txt
            Summary and other info is also written to stdout.
 '''
 import sys
-import os
 import time
 import argparse
-import re
 import unittest
 import figureText
 import GXD2aryAge
 from  GXD2aryRouter import GXDrouter
 import GXD2aryRefSample as SampleLib
 from sklearnHelperLib import predictionType
-#from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransformer
 #-----------------------------------
 
 sampleObjType = SampleLib.ClassifiedRefSample
@@ -62,23 +61,19 @@ def getArgs():
 
 args = getArgs()
 
+# Input files for various vocabs
+SKIPJOURNALFILENAME = '/Users/jak/work/GXD2ndaryProto/skipJournals.txt'
+CAT1EXCLUDEFILENAME = '/Users/jak/work/GXD2ndaryProto/cat1Exclude.txt'
+CAT2TERMFILENAME    = '/Users/jak/work/GXD2ndaryProto/cat2Terms.txt'
+CAT2EXCLUDEFILENAME = '/Users/jak/work/GXD2ndaryProto/cat2Exclude.txt'
+AGEEXCLUDEFILENAME  = '/Users/jak/work/GXD2ndaryProto/ageExclude.txt'
+
 # Output filenames
 args.routingsFilename  = "%sRoutings.txt" % args.baseName
-args.ExcludeMatchesFilename = "%sExcMatches.txt" % args.baseName
-args.AgeMatchesFilename = "%sAgeMatches.txt" % args.baseName
-args.TPmatchesFilename = "%sTPMatches.txt" % args.baseName
-args.FPmatchesFilename = "%sFPMatches.txt" % args.baseName
-args.TNmatchesFilename = "%sTNMatches.txt" % args.baseName
-args.FNmatchesFilename = "%sFNMatches.txt" % args.baseName
-args.detailsFilename   = "%sDetails.txt" % args.baseName
-args.summaryFilename   = "%sSummary.txt" % args.baseName
+args.detailsFilename   = "%sDetails.txt"  % args.baseName
+args.summaryFilename   = "%sSummary.txt"  % args.baseName
 
-# Input files for various vocabs
-SKIPJOURNALFILENAME='/Users/jak/work/GXD2ndaryProto/skipJournals.txt'
-CAT1EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat1Exclude.txt'
-CAT2TERMFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Terms.txt'
-CAT2EXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/cat2Exclude.txt'
-AGEEXCLUDEFILENAME='/Users/jak/work/GXD2ndaryProto/ageExclude.txt'
+fileSplitModulus = 4    # split big files based on this modulus
 
 # Formatting for the output reports
 routingFieldSep = '|'
@@ -147,31 +142,6 @@ def formatMatches(ID, routing, predType, goodJournal, numCat1Matches,
                    ]) + '\n'
     return output
 
-matchesNoCountsHdr = matchesFieldSep.join(['ID',
-                    'routing',
-                    'predType',
-                    'matchType',
-                    'preText',
-                    'matchText',
-                    'postText',
-                    'confidence',
-                    ]) + '\n'
-
-def formatMatchesNoCounts(ID, routing, predType, matchRcds, confidence):
-    output = ''
-    for m in matchRcds:
-        output += matchesFieldSep.join([
-                   str(ID),
-                   routing,
-                   predType,
-                   m.matchType,
-                   "'%s'" % m.preText.replace('\n','\\n').replace('\t','\\t'),
-                   "'%s'" % m.matchText.replace('\n','\\n').replace('\t','\\t'),
-                   "'%s'" % m.postText.replace('\n','\\n').replace('\t','\\t'),
-                   str(confidence),
-                   ]) + '\n'
-    return output
-
 #-----------------------------------
 
 def process():
@@ -208,50 +178,54 @@ def process():
     gxdRouter = GXDrouter(skipJournals, cat1Terms, cat1Exclude, ageExclude,
                                         cat2Terms, cat2Exclude, numChars=30)
 
-    # get testSet from stdin
+    # get testSet from stdin. Set samples to list of samples (refs) to route
     testSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
     testSet.read(sys.stdin)
     verbose('read %d refs to determine routing\n' % testSet.getNumSamples())
     verbose("%8.3f seconds\n\n" %  (time.time()-startTime))
 
-    # set up output files and various counts
+    if args.nToDo > 0:
+        samples = testSet.getSamples()[:args.nToDo]
+    else:
+        samples = testSet.getSamples()
+
+    # open routings output file
     routingsFile = open(args.routingsFilename, 'w')
     routingsFile.write(timeString + '\n')
     routingsFile.write(routingHdr)
 
-    excludeMatchesFile = open(args.ExcludeMatchesFilename, 'w')
-    excludeMatchesFile.write(timeString + '\n')
-    excludeMatchesFile.write(matchesHdr)
+    # open all the match output files
+    matchesFile = {}   # matchesFile[(cat,predType)] = output file for matches
+    for cat in ['Cat1', 'Cat2', 'Age']:
+        for predType in ['FP', 'TN', 'FN']:
+            fileName = '%s%s%smatches.txt' % (args.baseName, cat, predType)
+            fp = open(fileName, 'w')
+            #print("opening '%s' for output" % fileName)
+            matchesFile[(cat, predType)] = fp
 
-    ageMatchesFile = open(args.AgeMatchesFilename, 'w')
-    ageMatchesFile.write(timeString + '\n')
-    ageMatchesFile.write(matchesNoCountsHdr)
+        for predType in ['TP']:
+            for dig in range(fileSplitModulus):
+                fileName = '%s%s%s_%dmatches.txt' % (args.baseName, cat,
+                                                                predType, dig)
+                fp = open(fileName, 'w')
+                #print("opening '%s' for output" % fileName)
+                matchesFile[(cat, predType, dig)] = fp
 
-    matchesFile = { 'TP': open(args.TPmatchesFilename, 'w'),
-                    'FP': open(args.FPmatchesFilename, 'w'),
-                    'TN': open(args.TNmatchesFilename, 'w'),
-                    'FN': open(args.FNmatchesFilename, 'w'), }
-    for f in matchesFile.values():
-        f.write(timeString + '\n')
-        f.write(matchesHdr)
+    for fp in matchesFile.values():
+        fp.write(timeString + ' ')
+        fp.write(matchesHdr)
 
-    detailsFile = open(args.detailsFilename, 'w')
-    detailsFile.write(timeString + '\n')
-    detailsFile.write(gxdRouter.getExplanation())
-
+    # initialize reference counts
+    numProcessed = 0            # total number of references processed
     allCounts  = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}   # for all refs
     keepCounts = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}   # for keep refs
     discCounts = {'TP': 0, 'FP': 0, 'TN': 0, 'FN': 0}   # for discard refs
 
-    numProcessed = 0            # total number of references processed
-
-    if args.nToDo > 0: samples = testSet.getSamples()[:args.nToDo]
-    else: samples = testSet.getSamples()
-
-    # for each record, routeThisRef(), gather counts, write list of routings
+    # for each record, routeThisRef(), gather counts, write routing & matches
     for i, ref in enumerate(samples):
+        refID = ref.getID()
         conf = ref.getField('confidence')
-        routing = gxdRouter.routeThisRef(ref.getID(), ref.getDocument(),
+        routing = gxdRouter.routeThisRef(refID, ref.getDocument(),
                                                     ref.getField('journal'))
         numCat1Matches  = len(gxdRouter.getCat1Matches())
         numCat1Excludes = len(gxdRouter.getCat1Excludes())
@@ -283,54 +257,60 @@ def process():
                                             numCat2Matches, numCat2Excludes)
         routingsFile.write(r)
 
-        # Exclude matches file
-        m = formatMatches(ref.getID(), routing, predType, goodJournal,
-                    numCat1Matches, numAgeMatches, numCat2Matches,
-                    gxdRouter.getExcludeMatches(), conf)
-        excludeMatchesFile.write(m)
+        # Cat1 match report
+        matchRpt = formatMatches(refID, routing, predType, 
+                goodJournal, numCat1Matches, numAgeMatches, numCat2Matches,
+                gxdRouter.getCat1Matches() + gxdRouter.getCat1Excludes(), conf)
+        matchesFile[getMatchFileKey('Cat1', predType, refID)].write(matchRpt)
 
-        # Age match report, helpful for evaluating/debugging age mapping chgs
-        m = formatMatchesNoCounts(ref.getID(), routing, predType, 
+        # Age match report
+        matchRpt = formatMatches(refID, routing, predType, 
+                goodJournal, numCat1Matches, numAgeMatches, numCat2Matches,
                 gxdRouter.getAgeMatches() + gxdRouter.getAgeExcludes(), conf)
-        ageMatchesFile.write(m)
+        matchesFile[getMatchFileKey('Age', predType, refID)].write(matchRpt)
 
-        # Match files broken down by prediction type (TP, FP, ...)
-        m = formatMatches(ref.getID(), routing, predType, goodJournal,
-                    numCat1Matches, numAgeMatches, numCat2Matches,
-                    gxdRouter.getPosMatches(), conf)
-        matchesFile[predType].write(m)
-        if predType == 'FN':    # report exclude matches for FN's
-                                #  to help understand why not routed
-            m = formatMatches(ref.getID(), routing, predType, goodJournal,
-                        numCat1Matches, numAgeMatches, numCat2Matches,
-                        gxdRouter.getExcludeMatches(), conf)
-            matchesFile[predType].write(m)
+        # Cat2 match report
+        matchRpt = formatMatches(refID, routing, predType, 
+                goodJournal, numCat1Matches, numAgeMatches, numCat2Matches,
+                gxdRouter.getCat2Matches() + gxdRouter.getCat2Excludes(), conf)
+        matchesFile[getMatchFileKey('Cat2', predType, refID)].write(matchRpt)
+
     # end routing loop
 
+    # close Routing and Match files
     routingsFile.close()
-    detailsFile.close()
-    excludeMatchesFile.close()
-    ageMatchesFile.close()
     for f in matchesFile.values():
         f.close()
+
+    # write details output file
+    detailsFile = open(args.detailsFilename, 'w')
+    detailsFile.write(timeString + '\n')
+    detailsFile.write(gxdRouter.getExplanation())
+    detailsFile.close()
 
     # compute Precision, Recall, write summary
     summary = 'Summary\n'
     for counts, label in [(allCounts, 'Overall'), (keepCounts, 'Keeps'),
                                                     (discCounts, 'Discards')]:
-        summary += label + '\n'
+        numRefs = sum(counts.values())
+        summary += "%s - Total Refs: %d\n" % (label, numRefs)
+
+        summaryLineItems = []
+        p, r, npv = computeMetrics(counts)
+        summaryLineItems.append("Precision %.2f" % p)
+        summaryLineItems.append("Recall %.2f" % r)
+        summaryLineItems.append("NPV %.2f" % npv)
+        summary += '   '.join(summaryLineItems) + '\n'
+
+        summary += "    TP      FP      TN      FN\n"
+        countLineItems = []
         numRefs = 0
         for predType in ['TP', 'FP', 'TN', 'FN']:
-            summary += "%s: %d\n" % (predType, counts[predType])
-            numRefs += counts[predType]
+            countLineItems.append("%6d" % counts[predType])
+        summary += ', '.join(countLineItems) + '\n'
 
-        summary += "Total Refs: %d\n" % numRefs
-
-        p, r, npv = computeMetrics(counts)
-        summary += "Precision: %.2f%%\n" % p
-        summary += "Recall   : %.2f%%\n" % r
-        summary += "NPV      : %.2f%%\n" % npv
         summary += '\n'
+
     summary += "wrote %d routings to '%s'\n" % (numProcessed,
                                                     args.routingsFilename)
     summary += "%8.3f seconds\n\n" %  (time.time()-startTime)
@@ -343,6 +323,16 @@ def process():
     verbose(summary)
 
     return
+#-----------------------------------
+
+def getMatchFileKey(cat, predType, refID):
+    if predType == 'TP':
+        lastDig = int(refID[-2:])
+        dig = lastDig % fileSplitModulus
+        key = (cat, predType, dig)
+    else:
+        key = (cat, predType)
+    return key
 #-----------------------------------
 
 def computeMetrics(counts):
