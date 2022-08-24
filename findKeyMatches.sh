@@ -7,10 +7,13 @@
 #       2 match files M1 & M2
 # report contributing matches to predType prediction in R1-R2
 #
-# Note: this uses Jim's setop (set operations) utility to compute the
-#  difference R1-R2. 
-# Maybe there is a way to do this with the Unix join command, but I've never
-#  figured out how to make it work.
+# Note: this uses Jim's setops (set operations) utility to compute the
+#  difference R1-R2.
+#  Also for M1 M2 differences (instead of using diff) because sometimes the
+#   matches come out in different orders (for the same references),and we don't 
+#   want different match orders to appear as part of the match differences.
+# Maybe there is a way to do set difference with the Unix join command,
+#   but I've never figured out how to make that work.
 #
 function Usage() {
     cat - <<ENDTEXT
@@ -67,6 +70,7 @@ R1="$2"
 R2="$3"
 M1="$4"
 M2="$5"
+echo output from:   findKeyMatches.sh $1 $2 $3 $4 $5
 
 ### Get IDs of predTypes in R1 - R2 into $Wanted_IDs
 R1_IDs=tmp.$$.R1_IDs
@@ -74,7 +78,7 @@ R2_IDs=tmp.$$.R2_IDs
 cut -d '|' -f 1,4 $R1 | grep "$predType" | cut -d '|' -f 1 >$R1_IDs
 cut -d '|' -f 1,4 $R2 | grep "$predType" | cut -d '|' -f 1 >$R2_IDs
 Wanted_IDs=tmp.$$.Wanted_IDs
-setops --diff $R1_IDs $R2_IDs > $Wanted_IDs
+setops --diff $R1_IDs $R2_IDs | sort > $Wanted_IDs
 
 NumIDs=`cat $Wanted_IDs | wc -l`
 
@@ -86,7 +90,7 @@ if [ "$NumIDs" -eq "0" ]; then
 fi
 
 echo
-echo "Section 1: $NumIDs $predType references in $R1 not in $R2"
+echo Section 1: $NumIDs $predType references in $R1 not in $R2
 cat $Wanted_IDs
 
 ### pull out the matches for each wanted ID
@@ -119,13 +123,19 @@ else    # throw away exclude matches
     cut -f $finalCutFields $M2WantedMatches | egrep -v "\texclude" > $M2WantedMatchesClean
 fi
 
-### diff the two sets of cleaned up matches
+### diff the two sets of cleaned up matches using "setops --diff"
+#   so match order doesn't matter.
+OnlyInM1=tmp.$$.OnlyInM1
+OnlyInM2=tmp.$$.OnlyInM2
 echo
-echo "Section 2: Diffing matches $M1 to $M2 for $predType in $R1 not in $R2"
-DiffOutput=tmp.$$.diff.out
-diff $M1WantedMatchesClean $M2WantedMatchesClean > $DiffOutput
+echo "Section 2a: Matches in: $M1 - $M2"
+setops --diff $M1WantedMatchesClean $M2WantedMatchesClean | sort > $OnlyInM1
+cat $OnlyInM1
 
-cat $DiffOutput
+echo
+echo "Section 2b: Matches in: $M2 - $M1"
+setops --diff $M2WantedMatchesClean $M1WantedMatchesClean | sort > $OnlyInM2
+cat $OnlyInM2
 
 ### Do some aggregating magic to report matchText that made the differences
 ### and the count of references affected by that matchText
@@ -133,19 +143,21 @@ cat $DiffOutput
 #   pre/post text columns and rerunning the match diff.
 if [ $includeContext -eq "0" ]; then
     echo
-    echo "Section 3: Matches, and count of refs, in R1-R2 that chged routings"
+    echo "Section 3a: Matches, and count of refs, in M1-M2 that chged routings"
 
     # This outputs matches in the R1-R2 set.
     # grep "<":       get matches in R1 & not in R2 (ID, matchType, matchText)
     # sort -u:        throw out duplicate matchText from the same reference
     # cut -f 2,3:     just grab matchType and matchText
     # sort | uniq -c: output one line/matchText w/ count
-    grep "<" $DiffOutput | sort -u | cut -f 2,3 | sort | uniq -c
+    #grep "<" $DiffOutput | sort -u | cut -f 2,3 | sort | uniq -c
+    sort -u $OnlyInM1 | cut -f 2,3 | sort | uniq -c
 
     # This outputs matches in the R2-R1 set.
     echo
-    echo "Section 4: Matches, and count of refs, in R2-R1 that chged routings"
-    grep ">" $DiffOutput | sort -u | cut -f 2,3 | sort | uniq -c
+    echo "Section 3b: Matches, and count of refs, in M2-M1 that chged routings"
+    #grep ">" $DiffOutput | sort -u | cut -f 2,3 | sort | uniq -c
+    sort -u $OnlyInM2 | cut -f 2,3 | sort | uniq -c
 fi
 
 ### Delete tmp files
