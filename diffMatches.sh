@@ -8,22 +8,23 @@ function Usage() {
 $0 [--id] Matchfile1 Matchfile2
 
 Compare two match files, omit routing details from the diff so only the
-    different matches are reported.
+    different types & matcheText are reported.
 
     --id  include the reference IDs in the diff
-            (if --id is not specified, output includes a count of the times
-             the matchingText matched in each Matchfile)
-
+          This outputs differences in counts of matches within references.
+          (so aggregated within references)
+          W/o --id, output is difference in counts of matches across all refs.
+          (so aggregated across all references)
 ENDTEXT
     exit 5
 }
 
-# set defaults
+# Process args
 includeIDs=0
 while [ $# -gt 0 ]; do
     case "$1" in
     -h|--help) Usage ;;
-    --id) includeIDs=1; shift ;;
+    --id|--ids) includeIDs=1; shift ;;
     -*|--*) echo "invalid option $1"; Usage ;;
     *) break; ;;
     esac
@@ -32,25 +33,28 @@ if [ $# -ne 2 ]; then
     Usage
 fi
 
-OLDFILE="$1"
-NEWFILE="$2"
-OLDFILE_short="tmp.$$.old.short"
-NEWFILE_short="tmp.$$.new.short"
+FILE1="$1"
+FILE2="$2"
+FILE1_toDiff="tmp.$$.File1_toDiff"
+FILE2_toDiff="tmp.$$.File2_toDiff"
+FILE1_ids="tmp.$$.File1_ids"
+FILE2_ids="tmp.$$.File2_ids"
+FILE1_matches="tmp.$$.File1_matches"
+FILE2_matches="tmp.$$.File2_matches"
 
-if [ "$includeIDs" == "0" ]; then # No IDs, compare counts of matching text
-    # -f 8,10:    matchtype, matching text
-    # include counts of changes
-    cut  -f 8,10 $OLDFILE | sort |uniq -c > $OLDFILE_short
-    cut  -f 8,10 $NEWFILE | sort |uniq -c > $NEWFILE_short
-    diff $OLDFILE_short $NEWFILE_short 
+if [ "$includeIDs" == "0" ]; then # No IDs, compare counts of matches
+    cut  -f 8,10 $FILE1 | sort |uniq -c > $FILE1_toDiff # matchtype matchingText
+    cut  -f 8,10 $FILE2 | sort |uniq -c > $FILE2_toDiff
+    diff $FILE1_toDiff $FILE2_toDiff 
+
 else    # include IDs in the diff. This lets you see which refs were affected
-    cut  -f 8,10 $OLDFILE >tmp.$$.OLD1
-    cut  -f 8,10 $NEWFILE >tmp.$$.NEW1
-    cut  -f 1 $OLDFILE >tmp.$$.OLD2     # -f 1 ID field
-    cut  -f 1 $NEWFILE >tmp.$$.NEW2
-    paste tmp.$$.OLD1 tmp.$$.OLD2 | sort -u > $OLDFILE_short
-    paste tmp.$$.NEW1 tmp.$$.NEW2 | sort -u > $NEWFILE_short
-    diff $OLDFILE_short $NEWFILE_short 
+    cut  -f 1 $FILE1 > $FILE1_ids     # -f 1 ID field
+    cut  -f 1 $FILE2 > $FILE2_ids
+    cut  -f 8,10 $FILE1 > $FILE1_matches  # -f 8,10: matchtype, matchText
+    cut  -f 8,10 $FILE2 > $FILE2_matches
+    paste $FILE1_ids $FILE1_matches | sort | uniq -c > $FILE1_toDiff
+    paste $FILE2_ids $FILE2_matches | sort | uniq -c > $FILE2_toDiff
+    diff $FILE1_toDiff $FILE2_toDiff 
 fi
 
 rm -f tmp.$$.*
