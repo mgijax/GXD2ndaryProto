@@ -675,3 +675,16 @@ NewRules/
             - no change
             - Precision 100   Recall 98.03
             - TP 19939.  FP 0.  TN 0. FN 401
+
+        NC1Age32Assay28/  8/24/2022 (combined regular+p2005 testset)
+            - Baseline with the new combined testset
+            - Precision 82.84   Recall 98.02   NPV 96.41
+            -    TP      FP      TN      FN
+            - 19950,   4132,  10844,    404
+
+        NC1Age33Assay28/  8/24/2022 (combined regular+p2005 testset)
+            - Age tweaks: allow '; ' to block ageExclusions again.
+            - 22 TN->FP,  6 FN->TP
+            - Precision 82.77   Recall 98.04   NPV 96.45
+            -    TP      FP      TN      FN
+            - 19956,   4154,  10822,    398
