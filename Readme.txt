@@ -676,6 +676,8 @@ NewRules/
             - Precision 100   Recall 98.03
             - TP 19939.  FP 0.  TN 0. FN 401
 
+--- route3/ Starting New results directory-------------------------------------
+
         NC1Age32Assay28/  8/24/2022 (combined regular+p2005 testset)
             - Baseline with the new combined testset
             - Precision 82.84   Recall 98.02   NPV 96.41
@@ -688,3 +690,12 @@ NewRules/
             - Precision 82.77   Recall 98.04   NPV 96.45
             -    TP      FP      TN      FN
             - 19956,   4154,  10822,    398
+
+        NC1Age34Assay28/  8/25/2022 (combined regular+p2005 testset)
+            - Age eday tweaks: require "embryo_term" after "# day old mice",
+                               omit "0" as an eday number,
+                               "e# ml" not an age (before, required '-')
+            - 45 FP->TN,  4 TP->FN
+            - Precision 82.92   Recall 98.02   NPV 96.43
+            -    TP      FP      TN      FN
+            - 19952,   4109,  10867,    402

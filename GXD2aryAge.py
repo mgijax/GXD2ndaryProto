@@ -93,21 +93,21 @@ def getAgeMappings(context=210, fixContext=10):
         r'\b(?:' +
             # Acceptable numbers:
             #   any 1 or 2 digs 0-19 w/ .0 .5 .25 .75
-            #   any 1 or 2 digs 0-20 w/o decimals.
+            #   any 1 or 2 digs 1-20 w/o decimals.
 
             # ED|GD, optional space or -, acceptable number
             # ED short for embryonic day, GD short for gestational day
             r'(?:[eg]d(?:\s|-)?' +
                r'(?:(?:1\d|\d)[.][27]5' + # 1-2 digs w/ 2 decimal
                  r'|(?:1\d|\d)[.][05]' +  # 1-2 digs w/ 1 decimal
-                 r'|(?:1\d|20|\d)' +      # 1-2 digs, no decimals
+                 r'|(?:1\d|20|[1-9])' +   # 1-2 digs, no decimals
                  r')(?![.]\d))' +         # not followed by decimal
 
             # D|day(s), optional space or -, acceptable number, term
             r'|(?:(?:[eg]?d|days?)(?:\s|-)?' +
                r'(?:(?:1\d|\d)[.][27]5' + # 1-2 digs w/ 2 decimal
                  r'|(?:1\d|\d)[.][05]' +  # 1-2 digs w/ 1 decimal
-                 r'|(?:1\d|20|\d))' +     # 1-2 digs, no decimals
+                 r'|(?:1\d|20|[1-9]))' +  # 1-2 digs, no decimals
                  r'(?:\s|-)' +          # ... space or -
                  r'(?:' +               # ... some term
                    r'(?:[a-z]+(?:\s|-))?embryos?' + # (opt word) embryo
@@ -117,15 +117,16 @@ def getAgeMappings(context=210, fixContext=10):
             #     (E1-3 are rarely used & often mean other things)
             #     (we allow E14 here since typically in figure text, it will
             #      be an age, not a cell line. In gxdhtclassifier, we omit E14)
-            r'|(?:(?<![-])(?:' +     # not preceded by '-'
+            r'|(?:(?<![-])(?:' + # not preceded by '-'
                                   # (if preceded by '-', often "-En" is part of
                                   #  a symbol or cell line. If En-En is truly
                                   #  an age range, the 1st age will match)
                r'e(?:\s|-)?(?:1\d|\d)[.][27]5' +  # 1-2 digs w/ 2 decimal
                r'|e(?:\s|-)?(?:1\d|\d)[.][05]' +  # 1-2 digs w/ 1 decimal
-               r'|e(?:\s|-)?(?:1\d|20|[4-9])' +   # 1-2 digs, no decimals
-               r')(?![.]\d|[%]|-bp|-ml|-mg))' + # not followed by decimal or
-                                               #   % -bp -ml -mg
+               r'|e(?:\s|-)?(?:1\d|20|[4-9]))' +  # 1-2 digs, no decimals
+               r'(?![.]\d|[%]|(?:(?:\s|-)(?:bp|ml|mg)\b)))' + # not followed by
+                                               # decimal or % -bp -ml -mg
+
             # Embryonic/gestational term, space or -, acceptable number
             r'|(?:' +
                r'(?:(?:gestation(?:al)?|embryo(?:nic)?)(?:\s|-)days?' +
@@ -134,7 +135,7 @@ def getAgeMappings(context=210, fixContext=10):
                # number
                r'(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
                r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
-               r'|20|1\d|\d))' +               # 1-2 digs, no decimals
+               r'|20|1\d|[1-9]))' +           # 1-2 digs, no decimals
 
             # probably can delete this since we match "mice|mouse embryo" alone
             # mouse embryo (day number). e.g: "mouse-embryo-(day3.5)"
@@ -147,15 +148,20 @@ def getAgeMappings(context=210, fixContext=10):
             #   r'[)])' +
 
             # Number 1st, optional space or -, then some "day/embryo" term
-            r'|(?:(?:1\d[.][27]5|\d[.][27]5' +    # 1-2 digs w/ 2 decimals
+            r'|(?:(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
                 r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
-                r'|20|1\d|\d)' +               # 1-2 digs, no decimals
+                r'|20|1\d|[1-9])' +            # 1-2 digs, no decimals
                # num followed by...
                r'(?:\s|-)?' +          # optional space or -
                r'(?:' +
-                 r'(?:' +         # d|day, optional "old" ...some term...
+                 r'(?:' +         # d|day, optional "old", ...some term...
                    r'(?:d|days?)(?:\s|-)(?:old(?:\s|-))?' + # d|day, opt'l old
-                   r'(?:embryos?|mice|mouse|gestation))' +
+                   r'(?:embryos?|gestation))' +
+                 r'|(?:' +        # d|day, optional "old", mice + dev_term
+                   r'(?:d|days?)(?:\s|-)(?:old(?:\s|-))?' + # d|day, opt'l old
+                   r'(?:(?:mice|mouse)(?:\s|-)' +
+                     r'(?:embryos?|fetus(?:es)?|fetal|zygotes?|blastocysts?|morulae?)' +
+                   r'))' +
                  r'|(?:' +        # days after fertilization
                    r'days?(?:\s|-)(?:post|after)(?:\s|-)' +
                    r'(?:fertilization|gestation))' +
@@ -163,16 +169,16 @@ def getAgeMappings(context=210, fixContext=10):
                    r'(?:ed|gd|(?:embryonic|gestational)(?:\s|-)days?))))' +
 
             # (odd cases) Number w/ required decimals, followed by ...
-            r'|(?:(?:1\d[.][27]5|\d[.][27]5' +    # 1-2 digs w/ 2 decimals
+            r'|(?:(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
                 r'|1\d[.][05]|\d[.][05])' +    # 1-2 digs w/ 1 decimal
                # num followed by...
                r'(?:\s|-)?' +          # optional space or -
                r'(?:' +
                  r'days?(?:\s|-)old' +  # day old
-                 r'|embryos?))' +
+                 r'|embryos?))' +       # or embryo
 
             # Odd special case to match "17.E mouse"
-            r'|(?:(?:20|1\d|\d)[.]e(?:\s|-)mouse)' +  # 1-2 digs w/o decimals
+            r'|(?:(?:20|1\d|[1-9])[.]e(?:\s|-)mouse)' +  # 1-2 digs w/o decimals
 
             # final catch all
             r'|embryonic(?:\s|-)days?' + # spelled out, don't worry about nums
@@ -257,7 +263,17 @@ class MyTests(unittest.TestCase):
         self.assertEqual(tt.transformText(text), expt)
 
         # e exclusions
-        text = "s -E18 E1.2.3 9.0E-7 foo-E14 E 14% E 17-ml E3-bp e"
+        text = "s -E18 E1.2.3 9.0E-7 foo-E14 E 14% E 17-ml E3-bp E3 mg E3\nmg e"
+        self.assertEqual(tt.transformText(text), text)
+
+        # e exclusions boundary cases: 'e# mgsomething' doesn't exclude age
+        #   need word boundary after mg, ml, bp, etc.
+        text = "s e 17-mgi, e17 mgi, e17 mg, e"
+        expt = "s __mouse_age-mgi, __mouse_age mgi, e17 mg, e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        # 0 w/ no decimals is not an age
+        text = "s E0, gd0, 0 day old embryo, e 0, gestional day 0, e"
         self.assertEqual(tt.transformText(text), text)
 
         text = "s E20.5, E1.0, E-11.25, E 12.5, E2.75. e"  # approved decimals
@@ -288,16 +304,21 @@ class MyTests(unittest.TestCase):
         self.assertEqual(tt.transformText(text), expt)
 
         # Number followed by various terms
-        text = "s 10.5 d old embryos. 0.75-day-old-mouse embryo, e"
-        expt = "s __mouse_age. __mouse_age embryo, e"
+        text = "s 10.5 d old embryos. 0.75-day-old-mouse-embryo, e"
+        expt = "s __mouse_age. __mouse_age, e"
+        self.assertEqual(tt.transformText(text), expt)
+
+        text = "s 10.5 d old embryos. 0.75-day-old-mouse blastocysts, e"
+        expt = "s __mouse_age. __mouse_age, e"
         self.assertEqual(tt.transformText(text), expt)
 
         text = "s 10.25 d mice embryos. 7 day mouse embryo, e"
-        expt = "s __mouse_age embryos. __mouse_age embryo, e"
+        expt = "s __mouse_age. __mouse_age, e"
         self.assertEqual(tt.transformText(text), expt)
 
+                    # mice|mouse requires a dev_term after it to be an age
         text = "s 5.25 d old mice. 3 day mouse, 4.0 day gestation, e"
-        expt = "s __mouse_age. __mouse_age, __mouse_age, e"
+        expt = "s 5.25 d old mice. 3 day mouse, __mouse_age, e"
         self.assertEqual(tt.transformText(text), expt)
 
         text = "s 5.25 days after fertilization, e"
@@ -386,7 +407,7 @@ class MyTests(unittest.TestCase):
         self.assertEqual(tt.transformText(text), expt)
         #print('\n' + tt.getReport())
 
-    def test_AgeMappings4_developmental(self):
+    def test_AgeMappings5_developmental(self):
         tt = self.tt
 
         text = "s 5 mice embryos, 7.5-mouse embryo, e"
@@ -418,7 +439,7 @@ class MyTests(unittest.TestCase):
         expt = "s __mouse_age and __mouse_age e"
         self.assertEqual(tt.transformText(text), expt)
 
-    def test_AgeMappings4_misc(self):
+    def test_AgeMappings6_misc(self):
         tt = self.tt
         text = "s genepaint, allen brain atlas, allen-atlas, time series e"
         expt = "s __mouse_age, allen brain atlas, allen-atlas, time series e"
