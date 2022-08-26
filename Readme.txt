@@ -699,3 +699,11 @@ NewRules/
             - Precision 82.92   Recall 98.02   NPV 96.43
             -    TP      FP      TN      FN
             - 19952,   4109,  10867,    402
+
+        NC1Age35Assay28/  8/26/2022 (combined regular+p2005 testset)
+            - Age tweaks: eday: remove weird special case.
+                          Remove 'cat' from ageExclude terms
+            - 1 TP->FN, 2 FN->TP
+            - Precision 82.92   Recall 98.03   NPV 96.44
+            -    TP      FP      TN      FN
+            - 19953,   4109,  10867,    401

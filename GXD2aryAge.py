@@ -137,16 +137,6 @@ def getAgeMappings(context=210, fixContext=10):
                r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
                r'|20|1\d|[1-9]))' +           # 1-2 digs, no decimals
 
-            # probably can delete this since we match "mice|mouse embryo" alone
-            # mouse embryo (day number). e.g: "mouse-embryo-(day3.5)"
-            #r'|(?:(?:mice|mouse)(?:\s|-)embryos?(?:\s|-)' +
-            #   # day acceptable number in parens
-            #   r'[(]day(?:\s|-)?' +
-            #   r'(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
-            #   r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
-            #   r'|20|1\d|\d)' +               # 1-2 digs, no decimals
-            #   r'[)])' +
-
             # Number 1st, optional space or -, then some "day/embryo" term
             r'|(?:(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
                 r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
@@ -160,7 +150,8 @@ def getAgeMappings(context=210, fixContext=10):
                  r'|(?:' +        # d|day, optional "old", mice + dev_term
                    r'(?:d|days?)(?:\s|-)(?:old(?:\s|-))?' + # d|day, opt'l old
                    r'(?:(?:mice|mouse)(?:\s|-)' +
-                     r'(?:embryos?|fetus(?:es)?|fetal|zygotes?|blastocysts?|morulae?)' +
+                     r'(?:embryos?|fetus(?:es)?|fetal|zygotes?' +
+                      r'|blastocysts?|morulae?)' +
                    r'))' +
                  r'|(?:' +        # days after fertilization
                    r'days?(?:\s|-)(?:post|after)(?:\s|-)' +
@@ -168,16 +159,8 @@ def getAgeMappings(context=210, fixContext=10):
                  r'|(?:' +        # ed|gd|gestational day
                    r'(?:ed|gd|(?:embryonic|gestational)(?:\s|-)days?))))' +
 
-            # (odd cases) Number w/ required decimals, followed by ...
-            r'|(?:(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
-                r'|1\d[.][05]|\d[.][05])' +    # 1-2 digs w/ 1 decimal
-               # num followed by...
-               r'(?:\s|-)?' +          # optional space or -
-               r'(?:' +
-                 r'days?(?:\s|-)old' +  # day old
-                 r'|embryos?))' +       # or embryo
-
-            # Odd special case to match "17.E mouse"
+            # Odd special case to match "17.E mouse" that appears in MGI:6512808
+            # not sure this is worth it.
             r'|(?:(?:20|1\d|[1-9])[.]e(?:\s|-)mouse)' +  # 1-2 digs w/o decimals
 
             # final catch all
@@ -337,11 +320,7 @@ class MyTests(unittest.TestCase):
         expt = "s __mouse_age. 10 embryo day, e"
         self.assertEqual(tt.transformText(text), expt)
 
-        # Numbers that require an approved decimal, followed by various
-        text = "s 5.5 day old, 7.5-embryo, e"
-        expt = "s __mouse_age, __mouse_age, e"
-        self.assertEqual(tt.transformText(text), expt)
-
+        # odd special case for 17.E mouse
         text = "s 17.E-mouse, 5.E mouse. e"
         expt = "s __mouse_age, __mouse_age. e"
         self.assertEqual(tt.transformText(text), expt)
