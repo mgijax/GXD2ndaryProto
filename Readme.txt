@@ -707,3 +707,10 @@ NewRules/
             - Precision 82.92   Recall 98.03   NPV 96.44
             -    TP      FP      TN      FN
             - 19953,   4109,  10867,    401
+
+        NC1Age35Assay29/  8/26/2022 (combined regular+p2005 testset)
+            - cat2 and cat1 exclude term additions 
+            - 14 FP->TN
+            - Precision 82.97   Recall 98.03   NPV 96.45
+            -    TP      FP      TN      FN
+            - 19953,   4095,  10881,    401
