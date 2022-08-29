@@ -86,12 +86,19 @@ def doStaticAnalysis():
     timeString = time.ctime()
     verbose(timeString + '\n')
 
+    ## get testSet of samples
     testSet = SampleLib.ClassifiedSampleSet(sampleObjType=sampleObjType)
     testSet.read(args.sampleFileName)
 
     if args.nToDo > 0: samples = testSet.getSamples()[:args.nToDo]
     else: samples = testSet.getSamples()
 
+    t = "Analyzing %d refs from '%s'  %s\n" % (len(samples),
+                                                args.sampleFileName,timeString)
+    verbose(t)
+    sys.stdout.write(t)
+
+    ## get Exclude terms
     if args.excludeFileName != 'none':
         exclude = [line.strip() for line in open(args.excludeFileName, 'r') \
                             if not line.startswith('#') and line.strip() != '']
@@ -99,21 +106,9 @@ def doStaticAnalysis():
         exclude = []
 
     excludeDict = {x.lower() : x.upper() for x in exclude}
-
     verbose('got %d exclude terms\n' % len(exclude))
 
-
-    totalNumPos = testSet.getNumPositives()
-    totalNumNeg = testSet.getNumNegatives()
-    TermsAndStats = []
-
-    t = "Analyzing %d refs from '%s'\n" % (len(samples), args.sampleFileName)
-    sys.stdout.write(t)
-
-    header = "%s\t%s\t%s\t%s\t%s\t%s\n" % ('term', 'numPos', 'numNeg',
-                                        'posFraction', 'negFraction', 'dValue')
-    sys.stdout.write(header)
-    
+    ## get terms to do static analysis on
     terms = []
     for term in args.terms:
         if term == '-':           # read terms from stdin
@@ -121,7 +116,17 @@ def doStaticAnalysis():
                             if not line.startswith('#') and line.strip() != '']
         else:
             terms.append(term)
+    verbose('got %d terms to analyze\n' % len(terms))
 
+    ## Analyze
+    totalNumPos = testSet.getNumPositives()
+    totalNumNeg = testSet.getNumNegatives()
+    TermsAndStats = []
+
+    header = "%s\t%s\t%s\t%s\t%s\t%s\n" % ('term', 'numPos', 'numNeg',
+                                        'posFraction', 'negFraction', 'dValue')
+    sys.stdout.write(header)
+    
     for term in terms:
         term = term.lower()
         numPos = 0
