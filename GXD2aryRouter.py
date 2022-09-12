@@ -139,9 +139,49 @@ class GXDrouter (object):
         return len(self.cat2Matches)
 
     def _buildMouseAgeDetection(self):
+
         self.ageTextTransformer = GXD2aryAge.AgeTextTransformer( \
                                                     context=self.ageContext)
+        self.mouseRE = re.compile(r'\b(?:mouse|mice)\b', re.IGNORECASE)
+        ## organism ageExcludes
+        self.ageExcludeOrgList = [  'bovine',
+                                    'chick',
+                                    'human',
+                                    'larvae',
+                                    'monkey',
+                                    'porcine',
+                                    'zebra',
+                                    #'xenopus',
+                                    #'_bat_',
+                                    #'_cat_',
+                                    '_pig_',
+                                    '_rat_',
+                                    '_rats_',
+                                    'drosophila',
+                                    'worm',
+                                    'cynomolgus',
+                                    'macaque',
+                                    'opossum',
+                                    'tadpole',
+                                    'turtle',
+                                    'hamilton and hamburger',
+                                    'hamburger and hamilton',
+                                    'hamburger hamilton',
+                                    'hamburger-hamilton',
+                                    '_hh##_',
+                                    '_hh ##_',
+                                    '_hh-##_',
+                                    'chameleon',
+                                    'equine',
+                                    'quail',
+                                    ]
+        self.ageExcludeOrgTextMapping = TextMappingFromAgeExcludeTerms( \
+        'excludeAgeOrg', self.ageExcludeOrgList, lambda x: x.upper(), context=0)
 
+        self.ageExcludeOrgTextTransformer = TextTransformer( \
+                                            [self.ageExcludeOrgTextMapping])
+
+        ## other ageExcludes
         self.ageExcludeTextMapping = TextMappingFromAgeExcludeTerms( \
                 'excludeAge', self.ageExclude, lambda x: x.upper(), context=0)
 
@@ -169,13 +209,75 @@ class GXDrouter (object):
                                         if not m.matchType.startswith('fix')] 
         # check for ageExclude matches
         for m in ageMatches:
-            if self._isGoodAgeMatch(m):
+            if self._isGoodAgeMatch(m) and self._isGoodAgeOrgMatch(m):
                 self.ageMatches.append(m)
             else:
                 self.ageExcludes.append(m)
 
         self.ageTextTransformer.resetMatches()
         return len(self.ageMatches)
+
+    def _isGoodAgeOrgMatch(self, m # MatchRcd
+                        ):
+        """ Return True if the match looks like its about mouse and not
+                some other organism.
+            (i.e., no age exclusion terms found in the match or pre/post text)
+            If not a good mouse age, return False and:
+                Modify m.matchText, m.preText, or m.postText to highlight the
+                    exclude term that indicates it is not a good match,
+                Set m.matchType to 'excludeAge'
+        """
+        goodAgeMatch = True     # assume no exclusion terms detected
+
+        # If we fine 'mice|mouse', then its good.
+        if self.mouseRE.search(m.preText + m.matchText + m.postText):
+            return True
+        
+        # Search m.matchText for age organism exclusion terms
+        # another organism term should rarely be found in the matchText,
+        #  but I suppose it is theoretically possible
+        newText = self.ageExcludeOrgTextTransformer.transformText(m.matchText)
+        excludeMatches = self.ageExcludeOrgTextTransformer.getMatches()
+
+        for em in excludeMatches:       # for exclusion matches in matchText
+            newMText = m.matchText[:em.start] + em.replText + \
+                                                        m.matchText[em.end:]
+            m.matchText = newMText
+            goodAgeMatch = False
+            break
+        self.ageExcludeOrgTextTransformer.resetMatches()
+
+        # Search m.preText for age organism exclusion terms
+        newText = self.ageExcludeOrgTextTransformer.transformText(m.preText)
+        excludeMatches = self.ageExcludeOrgTextTransformer.getMatches()
+
+        for em in excludeMatches:       # for exclusion matches in preText
+            if not self.hasAgeExcludeBlock(m.preText[em.end:]):
+                # no intervening text found that should block the exclude
+                newPText = m.preText[:em.start] + em.replText + \
+                                                            m.preText[em.end:]
+                m.preText = newPText
+                goodAgeMatch = False
+                break
+        self.ageExcludeOrgTextTransformer.resetMatches()
+
+        # Search m.postText for age exclusion terms
+        newText = self.ageExcludeOrgTextTransformer.transformText(m.postText)
+        excludeMatches = self.ageExcludeOrgTextTransformer.getMatches()
+
+        for em in excludeMatches:      # for exclusion matches in postText
+            if not self.hasAgeExcludeBlock(m.postText[:em.start]):
+                # no intervening text found that should block the exclude
+                newPText = m.postText[:em.start] + em.replText + \
+                                                            m.postText[em.end:]
+                m.postText = newPText
+                goodAgeMatch = False
+                break
+        self.ageExcludeOrgTextTransformer.resetMatches()
+
+        if not goodAgeMatch:
+            m.matchType = 'excludeAgeOrg'
+        return goodAgeMatch
 
     def _isGoodAgeMatch(self, m # MatchRcd
                         ):
@@ -305,6 +407,7 @@ class GXDrouter (object):
 
         output += 'Num chars around age matches to look for age excludes: %d\n'\
                                                     % self.ageContext
+        output += 'Treating organism terms differently from other ageExcludes\n'
         output += 'Mouse Age Exclude terms:\n'
         for t in sorted(self.ageExclude):
             output += "\t'%s'\n" % t

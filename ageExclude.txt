@@ -1,5 +1,35 @@
-bovine
-chick
+# organisms
+#bovine
+#chick
+#human
+#larvae
+#monkey
+#porcine
+#zebra
+##xenopus
+##_bat_
+##_cat_
+#_pig_
+#_rat_
+#_rats_
+#drosophila
+#worm
+#cynomolgus
+#macaque
+#opossum
+#tadpole
+#turtle
+#hamilton and hamburger
+#hamburger and hamilton
+#hamburger hamilton
+#hamburger-hamilton
+#_hh##_
+#_hh ##_
+#_hh-##_
+#chameleon
+#equine
+#quail
+
 chimaer
 chimer
 electroporat
@@ -10,19 +40,13 @@ fetal-like
 fetal survival
 fetal viability
 fetal weight
-human
-larvae
-monkey
 morpholino
 organoid
-porcine
 resorption
 transduct
 transfect
 transferred
 transplanted
-#xenopus
-zebra
 # below: spaces before so they match only at the beginning of words
 _arrested
 _cultur
@@ -34,11 +58,6 @@ _treat
 _vitrifi
 _vitro
 # below: spaces before and after so they don't match parts of words
-#_bat_
-#_cat_
-_pig_
-_rat_
-_rats_
 # Age 10 additional age exclude word experiments
 # Age11Assay22: experiment 1
 facs
@@ -130,28 +149,11 @@ von kossa
 toluidine
 # Age16Assay22: experiment 6
 tropicalis
-drosophila
-worm
-cynomolgus
-macaque
 virus
-opossum
 hpf
-tadpole
-turtle
-hamilton and hamburger
-hamburger and hamilton
-hamburger hamilton
-hamburger-hamilton
-_hh##_
-_hh ##_
-_hh-##_
 # Age17Assay22: experiment 7
 dox
 tamoxifen
 # Age18Assay22: experiment 8
-chameleon
-equine
-quail
 zikv
 bursa
