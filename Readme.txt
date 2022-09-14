@@ -714,3 +714,25 @@ NewRules/
             - Precision 82.97   Recall 98.03   NPV 96.45
             -    TP      FP      TN      FN
             - 19953,   4095,  10881,    401
+
+        NC1Age36Assay29/  9/13/2022 (combined regular+p2005 testset)
+            - Splitting out ageExclude organism terms.
+                Same blocking chars: paragraph, '. ', '; '
+            - Precision 82.89   Recall 98.09   NPV 96.54
+            -    TP      FP      TN      FN
+            - 19965,   4121,  10855,    389
+            TestSet3:
+            - Precision 32.00   Recall 97.54   NPV 99.55
+            -    TP      FP      TN      FN
+            -   1939,   4121,  10855,     49
+
+        NC1Age37Assay29/  9/13/2022 (combined regular+p2005 testset)
+            - Splitting out ageExclude organism terms.
+                Omit '; ' from blocking
+            - Precision 82.94   Recall 98.06   NPV 96.50
+            -    TP      FP      TN      FN
+            - 19960,   4105,  10871,    394
+            TestSet3:
+            - Precision 32.07   Recall 97.48   NPV 99.54
+            -    TP      FP      TN      FN
+            -  1938,   4105,  10871,     50

@@ -143,6 +143,19 @@ class GXDrouter (object):
         self.ageTextTransformer = GXD2aryAge.AgeTextTransformer( \
                                                     context=self.ageContext)
         self.mouseRE = re.compile(r'\b(?:mouse|mice)\b', re.IGNORECASE)
+
+            # re to detect strings that would block an age exclude term
+            # from causing the exclusion if they occur between
+            # the exclude term and the matching age text:
+            #   paragraph boundary OR '; '
+            #   OR:  '. ' NOT preceded by 'fig' or 'et al' (common abbrevs)
+            #   Using (?<!R) "negative look behind".
+            #         R has to have a fixed width. So I'm matching 4 chars:
+            #         \Wfig = any nonalphnumeric + 'fig'
+            #         or 't al'
+        #blockRegex = r'\n\n|[;]\s|(?<!\Wfig|t al)[.]\s'      # original
+        blockRegex = r'\n\n|(?<!\Wfig|t al)[.]\s'             # w/o '; '
+
         ## organism ageExcludes
         self.ageExcludeOrgList = [  'bovine',
                                     'chick',
@@ -151,9 +164,9 @@ class GXDrouter (object):
                                     'monkey',
                                     'porcine',
                                     'zebra',
-                                    #'xenopus',
-                                    #'_bat_',
-                                    #'_cat_',
+                                    'xenopus',
+                                    #'_bat_',   # brown adipose tissue abbrev
+                                    #'_cat_',   # gene family
                                     '_pig_',
                                     '_rat_',
                                     '_rats_',
@@ -180,6 +193,7 @@ class GXDrouter (object):
 
         self.ageExcludeOrgTextTransformer = TextTransformer( \
                                             [self.ageExcludeOrgTextMapping])
+        self.ageExcludeOrgBlockRE = re.compile(blockRegex)  # . or para
 
         ## other ageExcludes
         self.ageExcludeTextMapping = TextMappingFromAgeExcludeTerms( \
@@ -187,17 +201,8 @@ class GXDrouter (object):
 
         self.ageExcludeTextTransformer = TextTransformer( \
                                                 [self.ageExcludeTextMapping])
-            # re to detect strings that would prohibit an age exclude term
-            # from causing the exclusion if they occur between
-            # the exclude term and the matching age text:
-            #   paragraph boundary OR '; '
-            #   OR:  '. ' NOT preceded by 'fig' or 'et al' (common abbrevs)
-            #   Using (?<!R) "negative look behind".
-            #         R has to have a fixed width. So I'm matching 4 chars:
-            #         \Wfig = any nonalphnumeric + 'fig'
-            #         or 't al'
-        regex = r'\n\n|[;]\s|(?<!\Wfig|t al)[.]\s'
-        self.ageExcludeBlockRE = re.compile(regex)  # ; or . or para
+        self.ageExcludeBlockRE = re.compile(blockRegex)  # ; or . or para
+    # end _buildMouseAgeDetection()
 
     def _gotMouseAge(self, text):
         """ Return True if we find mouse age terms in text
@@ -221,20 +226,31 @@ class GXDrouter (object):
                         ):
         """ Return True if the match looks like its about mouse and not
                 some other organism.
-            (i.e., no age exclusion terms found in the match or pre/post text)
             If not a good mouse age, return False and:
                 Modify m.matchText, m.preText, or m.postText to highlight the
                     exclude term that indicates it is not a good match,
-                Set m.matchType to 'excludeAge'
+                Set m.matchType to 'excludeAgeOrg'
         """
         goodAgeMatch = True     # assume no exclusion terms detected
 
-        # If we fine 'mice|mouse', then its good.
-        if self.mouseRE.search(m.preText + m.matchText + m.postText):
+        # If matchText has 'mice|mouse', then it's a good match
+        if self.mouseRE.search(m.matchText):
             return True
         
-        # Search m.matchText for age organism exclusion terms
-        # another organism term should rarely be found in the matchText,
+        # if preText has unblocked 'mice|mouse', then it's a good match
+        for mouseMatch in self.mouseRE.finditer(m.preText):
+            interveneText = m.preText[mouseMatch.end():]
+            if not self.ageExcludeOrgBlockRE.search(interveneText):
+                return True
+        
+        # if postText has unblocked 'mice|mouse', then it's a good match
+        for mouseMatch in self.mouseRE.finditer(m.postText):
+            interveneText = m.postText[:mouseMatch.start()]
+            if not self.ageExcludeOrgBlockRE.search(interveneText):
+                return True
+
+        # If m.matchText has age organism exclusion term, then exclude
+        # Another organism term should rarely be found in the matchText,
         #  but I suppose it is theoretically possible
         newText = self.ageExcludeOrgTextTransformer.transformText(m.matchText)
         excludeMatches = self.ageExcludeOrgTextTransformer.getMatches()
@@ -247,12 +263,12 @@ class GXDrouter (object):
             break
         self.ageExcludeOrgTextTransformer.resetMatches()
 
-        # Search m.preText for age organism exclusion terms
+        # If m.preText has unblocked age organism exclusion term, then exclude
         newText = self.ageExcludeOrgTextTransformer.transformText(m.preText)
         excludeMatches = self.ageExcludeOrgTextTransformer.getMatches()
 
         for em in excludeMatches:       # for exclusion matches in preText
-            if not self.hasAgeExcludeBlock(m.preText[em.end:]):
+            if not self.ageExcludeOrgBlockRE.search(m.preText[em.end:]):
                 # no intervening text found that should block the exclude
                 newPText = m.preText[:em.start] + em.replText + \
                                                             m.preText[em.end:]
@@ -261,12 +277,12 @@ class GXDrouter (object):
                 break
         self.ageExcludeOrgTextTransformer.resetMatches()
 
-        # Search m.postText for age exclusion terms
+        # If m.postText has unblocked age organism exclusion term, then exlude
         newText = self.ageExcludeOrgTextTransformer.transformText(m.postText)
         excludeMatches = self.ageExcludeOrgTextTransformer.getMatches()
 
         for em in excludeMatches:      # for exclusion matches in postText
-            if not self.hasAgeExcludeBlock(m.postText[:em.start]):
+            if not self.ageExcludeOrgBlockRE.search(m.postText[:em.start]):
                 # no intervening text found that should block the exclude
                 newPText = m.postText[:em.start] + em.replText + \
                                                             m.postText[em.end:]
@@ -407,7 +423,6 @@ class GXDrouter (object):
 
         output += 'Num chars around age matches to look for age excludes: %d\n'\
                                                     % self.ageContext
-        output += 'Treating organism terms differently from other ageExcludes\n'
         output += 'Mouse Age Exclude terms:\n'
         for t in sorted(self.ageExclude):
             output += "\t'%s'\n" % t
@@ -417,6 +432,19 @@ class GXDrouter (object):
 
         output += 'Mouse age exclude blocking regular expression:\n'
         output += self.ageExcludeBlockRE.pattern + '\n'
+        output += 'Mouse age exclude blocking logic for ". ":\n'
+        output += '". " not following "fig" nor "et al"\n'
+
+        output += 'Treating organism terms differently from other ageExcludes\n'
+        output += 'Mouse Age Organism Exclude terms:\n'
+        for t in sorted(self.ageExcludeOrgList):
+            output += "\t'%s'\n" % t
+
+        output += 'Mouse age Organism exclude regular expression:\n'
+        output += self.ageExcludeOrgTextTransformer.getBigRegex() + '\n'
+
+        output += 'Mouse age Organism exclude blocking regular expression:\n'
+        output += self.ageExcludeOrgBlockRE.pattern + '\n'
         output += 'Mouse age exclude blocking logic for ". ":\n'
         output += '". " not following "fig" nor "et al"\n'
 
