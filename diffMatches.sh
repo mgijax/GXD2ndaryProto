@@ -5,26 +5,35 @@
 function Usage() {
     cat - <<ENDTEXT
 
-$0 [--id] Matchfile1 Matchfile2
+$0 [--count [--id]] Matchfile1 Matchfile2
 
-Compare two match files, omit routing details from the diff so only the
-    different types & matcheText are reported.
+Compare two match files, omit routing details from the match files so only the
+    differences in the matches are reported
 
-    --id  include the reference IDs in the diff
-          This outputs differences in counts of matches within references.
-          (so aggregated within references)
-          W/o --id, output is difference in counts of matches across all refs.
-          (so aggregated across all references)
+    --count ignore pre/post text, only look at matchText and compare counts
+            of distinct matchText
+
+    --id    include the reference IDs in the diff
+            This outputs differences in counts of matches within references.
+                (so aggregated within references)
+                IDs are output so you can see which refs have different matches.
+
+            W/O --id, output is diff in counts of matchText across all refs.
+                (so aggregated across all references in the corpus)
+
+    with no --count, the ID, matchType, preText, matchText, postText are diffed
 ENDTEXT
     exit 5
 }
 
 # Process args
+counts=0
 includeIDs=0
 while [ $# -gt 0 ]; do
     case "$1" in
     -h|--help) Usage ;;
-    --id|--ids) includeIDs=1; shift ;;
+    --count|--counts) counts=1;     shift ;;
+    --id|--ids)       includeIDs=1; shift ;;
     -*|--*) echo "invalid option $1"; Usage ;;
     *) break; ;;
     esac
@@ -37,24 +46,23 @@ FILE1="$1"
 FILE2="$2"
 FILE1_toDiff="tmp.$$.File1_toDiff"
 FILE2_toDiff="tmp.$$.File2_toDiff"
-FILE1_ids="tmp.$$.File1_ids"
-FILE2_ids="tmp.$$.File2_ids"
-FILE1_matches="tmp.$$.File1_matches"
-FILE2_matches="tmp.$$.File2_matches"
 
-if [ "$includeIDs" == "0" ]; then # No IDs, compare counts of matches
-    cut  -f 8,10 $FILE1 | sort |uniq -c > $FILE1_toDiff # matchtype matchingText
-    cut  -f 8,10 $FILE2 | sort |uniq -c > $FILE2_toDiff
-    diff $FILE1_toDiff $FILE2_toDiff 
+                        # fields to diff if no counts
+CUTFIELDS="1,8-11"      # ID, matchType, preText, matchText, postText
 
-else    # include IDs in the diff. This lets you see which refs were affected
-    cut  -f 1 $FILE1 > $FILE1_ids     # -f 1 ID field
-    cut  -f 1 $FILE2 > $FILE2_ids
-    cut  -f 8,10 $FILE1 > $FILE1_matches  # -f 8,10: matchtype, matchText
-    cut  -f 8,10 $FILE2 > $FILE2_matches
-    paste $FILE1_ids $FILE1_matches | sort | uniq -c > $FILE1_toDiff
-    paste $FILE2_ids $FILE2_matches | sort | uniq -c > $FILE2_toDiff
-    diff $FILE1_toDiff $FILE2_toDiff 
+if [ "$counts" == "1" ]; then # do counts of matchTexts
+    if [ "$includeIDs" == "1" ]; then
+        CUTFIELDS="1,8,10"      # ID, matchtype, matchText, ignore context
+    else
+        CUTFIELDS="8,10"        # matchtype, matchText, ignore context
+    fi
+    cut  -f $CUTFIELDS $FILE1 | sort |uniq -c > $FILE1_toDiff
+    cut  -f $CUTFIELDS $FILE2 | sort |uniq -c > $FILE2_toDiff
+
+else     # no counts
+    cut  -f $CUTFIELDS $FILE1 | sort > $FILE1_toDiff
+    cut  -f $CUTFIELDS $FILE2 | sort > $FILE2_toDiff
 fi
 
+diff $FILE1_toDiff $FILE2_toDiff 
 rm -f tmp.$$.*
