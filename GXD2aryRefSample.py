@@ -5,7 +5,7 @@
 import re
 from baseSampleDataLib import *
 import figureText
-import GXD2aryAge
+import GXD2aryRouter
 from utilsLib import TextMapping, TextTransformer
 #-----------------------------------
 
@@ -22,7 +22,7 @@ REPORTBYREFERENCE = True       # True = report transformations by reference
 REPORTFIXTRANSFORMS = False     # T/F report "fix" transformations
                                 # (only applies if REPORTBYREFERENCE==True)
 
-textTransformer_age = GXD2aryAge.AgeTextTransformer(context=210)
+textTransformer_age = GXD2aryRouter.AgeTextTransformer(context=210)
 
 #-----------------------------------
 
