@@ -2,10 +2,11 @@
 '''
   Purpose: Define the classes that implement the GXD 2ary triage routing
             algorithm.
-            To instantiate the class, you need vocabularies (lists of strings)
+           The main class is GXD2aryRouter.
+           To instantiate this class, you need vocabularies (lists of strings)
             for the vocabs listed below.
 
-  To Test:  If you run this module as a script, it runs automated tests.
+  To Test:  python test_GXD2aryRouter.py -v
   
   To Use:
     import GXD2aryRouter
@@ -40,31 +41,7 @@ import re
 import unittest
 import figureText
 import GXD2aryAge
-from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransformer
-#-----------------------------------
-
-class TextMappingFromAgeExcludeTerms (TextMappingFromStrings):
-    """
-    Is a: TextMapping for matching age exclusion terms
-    Does: converts ageExclude vocab terms (a list of strings) to regex's with
-            ' ' converted to r'\s' (any whitespace)
-            '_' converted to r'\b' (word boundary)
-            '#' converted to r'\d' (any digit)
-          This gives the curators to a way to make simple regex's from vocab
-          terms.
-    """
-
-    def _str2regex(self, s):
-        """ Return re.escape(s) string with
-            '_' replaced w/ word boundaries (r'\b')
-            ' ' replaced with r'\s' to match any whitespace
-            '#' replaced with r'\d' to match any digit
-        """
-        regex = re.escape(s)
-        regex = regex.replace(' ', 's')   # escape puts '\' before ' ' 
-        regex = regex.replace('#', 'd')   # escape puts '\' before '#' 
-        regex = regex.replace('_', r'\b') # escape does not put '\' before '_' 
-        return regex
+from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransformer, spacedOutRegex
 #-----------------------------------
 
 class GXDrouter (object):
@@ -345,6 +322,238 @@ class GXDrouter (object):
         return all
 # end class GXDrouter -----------------------------------
 
+class AgeTextTransformer (TextTransformer):
+    """
+    IS a TextTransformer to convert mouse age text to "__mouse_age" with
+       specificiable context length - the number of chars to keep around
+       each age match.
+
+    To use the age mappings:
+      import GXD2aryRouter
+      ageTransformer = GXD2aryRouter.AgeTextTransformer()
+      newText   = ageTransformer.transformText("some text")
+      matches   = ageTransformer.getMatches() # to get MatchRcds for matches
+      reportStr = ageTransformer.getReport()  # to get formatted match report
+    """
+    def __init__(self, context=210, fixContext=10):
+        self.context    = context
+        self.fixContext = fixContext
+        ageMappings     = getAgeMappings(context=context, fixContext=fixContext)
+
+        super().__init__(ageMappings, reFlags=re.IGNORECASE)
+
+    def getContext(self):    return self.context
+    def getFixContext(self): return self.fixContext
+#-----------------------------------
+
+def getAgeMappings(context=210, fixContext=10):
+    """ Return list of age TextMapping objects with the specified number of
+        characters for context to keep for each match.
+        fixContext is the num of characters to keep for mappings that just
+            fix weird text problems
+
+        These mappings are a little different from the age mappings
+        defined for the autolittriage relevanceClassifier and gxdhtclassifier
+        since they are only matched against figure text and have been tuned by
+        lots of trial and error for GXD 2ndary triage.
+    """
+    return [ \
+    # Be careful about the order of these mappings.
+    # If two can overlap in their matching text, only the first one is applied.
+
+    # Fix mappings: detect weird usages that would erroneously be mapped
+    #  to mouse_age
+    # by putting these "fix" mappings, 1st, if they match, none of the later
+    # mappings will match (1st match wins), even if these don't change the text
+
+    TextMapping('fix2',       # detect figure|table En (En is fig num)
+                              # so En is not treated as eday
+        r'\b(?:' +
+            r'(?:figures?|fig[.s]?|tables?) e\d' +
+        r')', lambda x: x,
+        context=fixContext),
+    TextMapping('fix1',       # correct 'F I G U R E n' so it doesn't
+                              # look like embryonic day "E n". "T A B L E" too
+        r'\b(?:' +
+            spacedOutRegex('figure') +
+            r'|' + spacedOutRegex('table') +
+        r')\b', lambda x: ''.join(x.split()), # funct to squeeze out spaces
+        context=fixContext),
+
+    # The Real age mappings
+    TextMapping('dpc',
+        # For dpc numbers: allow 0-29 even though most numbers >21 may not be
+        #   mice. There tend to not be many matches > 21
+        # (0-29 is easy to code as a regexpr: r'(?:\d|[12]\d)' )
+        # Allow optional .0 and .5.  regexpr: r'(?:[.][05])?'
+        r'\b(?:' +     
+            # flavors of "days post conceptus" w/o numbers
+            r'd(?:ays?)?(?:\s|-)post(?:\s|-)?' +
+                    r'(?:concept(?:ions?|us)?|coit(?:us|um|al)?)' +
+
+            # number 1st, optional space or -, then dpc
+            r'|(?:\d|[12]\d)(?:[.][05])?(?:\s|-)?dpc' + 
+            r'|(?:\d|[12]\d)(?:[.][05])?(?:\s|-)?d[.]p[.]c' +  # periods
+
+            # dpc 1st, optional space or -, then number
+            r'|d[.]?p[.]?c[.]?(?:\s|-)?(?:\d|[12]\d)(?:[.][05])?' +
+
+            # 'd'|'day'|'days' 1st, space or - required, then number, then p.c.
+            r'|d(?:ays?)?(?:\s|-)(?:\d|[12]\d)(?:[.][05])?(?:\s|-)?p[.]?c' +
+        r')\b', '__mouse_age', context=context),
+
+    TextMapping('eday',
+        r'\b(?:' +
+            # Acceptable numbers:
+            #   any 1 or 2 digs 0-19 w/ .0 .5 .25 .75
+            #   any 1 or 2 digs 1-20 w/o decimals.
+
+            # ED|GD, optional space or -, acceptable number
+            # ED short for embryonic day, GD short for gestational day
+            r'(?:[eg]d(?:\s|-)?' +
+               r'(?:(?:1\d|\d)[.][27]5' + # 1-2 digs w/ 2 decimal
+                 r'|(?:1\d|\d)[.][05]' +  # 1-2 digs w/ 1 decimal
+                 r'|(?:1\d|20|[1-9])' +   # 1-2 digs, no decimals
+                 r')(?![.]\d))' +         # not followed by decimal
+
+            # D|day(s), optional space or -, acceptable number, term
+            r'|(?:(?:[eg]?d|days?)(?:\s|-)?' +
+               r'(?:(?:1\d|\d)[.][27]5' + # 1-2 digs w/ 2 decimal
+                 r'|(?:1\d|\d)[.][05]' +  # 1-2 digs w/ 1 decimal
+                 r'|(?:1\d|20|[1-9]))' +  # 1-2 digs, no decimals
+                 r'(?:\s|-)' +          # ... space or -
+                 r'(?:' +               # ... some term
+                   r'(?:[a-z]+(?:\s|-))?embryos?' + # (opt word) embryo
+                   r'|of(?:\s|-)gestation))' +
+
+            # E, optional space or -, acceptable number
+            #     (E1-3 are rarely used & often mean other things)
+            #     (we allow E14 here since typically in figure text, it will
+            #      be an age, not a cell line. In gxdhtclassifier, we omit E14)
+            r'|(?:(?<![-])(?:' + # not preceded by '-'
+                                  # (if preceded by '-', often "-En" is part of
+                                  #  a symbol or cell line. If En-En is truly
+                                  #  an age range, the 1st age will match)
+               r'e(?:\s|-)?(?:1\d|\d)[.][27]5' +  # 1-2 digs w/ 2 decimal
+               r'|e(?:\s|-)?(?:1\d|\d)[.][05]' +  # 1-2 digs w/ 1 decimal
+               r'|e(?:\s|-)?(?:1\d|20|[4-9]))' +  # 1-2 digs, no decimals
+               r'(?![.]\d|[%]|(?:(?:\s|-)(?:bp|ml|mg)\b)))' + # not followed by
+                                               # decimal or % -bp -ml -mg
+
+            # Embryonic/gestational term, space or -, acceptable number
+            r'|(?:' +
+               r'(?:(?:gestation(?:al)?|embryo(?:nic)?)(?:\s|-)days?' +
+                 r'|embryonic)' +
+               r'(?:\s|-)?' +  # optional space or -
+               # number
+               r'(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
+               r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
+               r'|20|1\d|[1-9]))' +           # 1-2 digs, no decimals
+
+            # Number 1st, optional space or -, then some "day/embryo" term
+            r'|(?:(?:1\d[.][27]5|\d[.][27]5' + # 1-2 digs w/ 2 decimals
+                r'|1\d[.][05]|\d[.][05]' +     # 1-2 digs w/ 1 decimal
+                r'|20|1\d|[1-9])' +            # 1-2 digs, no decimals
+               # num followed by...
+               r'(?:\s|-)?' +          # optional space or -
+               r'(?:' +
+                 r'(?:' +         # d|day, optional "old", ...some term...
+                   r'(?:d|days?)(?:\s|-)(?:old(?:\s|-))?' + # d|day, opt'l old
+                   r'(?:embryos?|gestation))' +
+                 r'|(?:' +        # d|day, optional "old", mice + dev_term
+                   r'(?:d|days?)(?:\s|-)(?:old(?:\s|-))?' + # d|day, opt'l old
+                   r'(?:(?:mice|mouse)(?:\s|-)' +
+                     r'(?:embryos?|fetus(?:es)?|fetal|zygotes?' +
+                      r'|blastocysts?|morulae?)' +
+                   r'))' +
+                 r'|(?:' +        # days after fertilization
+                   r'days?(?:\s|-)(?:post|after)(?:\s|-)' +
+                   r'(?:fertilization|gestation))' +
+                 r'|(?:' +        # ed|gd|gestational day
+                   r'(?:ed|gd|(?:embryonic|gestational)(?:\s|-)days?))))' +
+
+            # Odd special case to match "17.E mouse" that appears in MGI:6512808
+            # not sure this is worth it.
+            r'|(?:(?:20|1\d|[1-9])[.]e(?:\s|-)mouse)' +  # 1-2 digs w/o decimals
+
+            # final catch all
+            r'|embryonic(?:\s|-)days?' + # spelled out, don't worry about nums
+        r')\b', '__mouse_age', context=context),
+
+    TextMapping('ts',
+        r'\b(?:' +
+            r'theiler\sstages?' +
+            r'|TS(?:\s|-)?[7-9]' +  # 1 digit, 0-6 not used or are other things
+            r'|TS(?:\s|-)?[12]\d' +   # 2 digits
+        r')\b', '__mouse_age', context=context),
+    TextMapping('ee',   # early embryo terms
+                        # mesenchymal mesenchymes? ?
+        r'\b(?:' +
+            r'blastocysts?|blastomeres?|headfold|autopods?' +
+                        # embryo(nic) <opt word> lysates|extracts
+            r'|embryo(?:nic)?(?:\s|-)(?:[a-z]+(?:\s|-))?(?:lysates?|extracts?)'+
+            r'|(?:(?:early|mid|late)(?:\s|-))?streak|morulae?|somites?' +
+            r'|(?:limb(?:\s|-)?)buds?' +    # bud w/ limb in front
+            r'|(?<!fin(?:\s|-))buds?' +     # bud w/o 'fin ' in front
+            r'|(?:' +
+                r'(?:[1248]|one|two|four|eight)(?:\s|-)cells?(?:\s|-)' +
+                r'(?:' +   # "embryo" or "stage" must come after [1248] cell
+                    r'stages?|' +
+                    r'(?:' +
+                        r'(?:(?:mouse|mice|cloned)(?:\s|-))?embryos?' +
+                    r')' +
+                r')' +
+            r')' +
+        r')\b', '__mouse_age', context=context),
+    TextMapping('developmental',   # "developmental" terms
+        r'\b(?:' +  # Do we want to add simply "embryos?"
+            r'zygotes?' +
+            r'|(?:mice|mouse)(?:\s|-)embryos?' +        # more general
+            r'|development(?:al)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?stages?' +
+            r'|development(?:al)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?ages?' +
+            r'|embryo(?:nic)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?stages?' +
+            r'|embryo(?:nic)?(?:\s|-)(?:(?:mice|mouse)(?:\s|-))?ages?' +
+            r'|embryo(?:nic)?(?:\s|-)development' +
+            r'|(?:st)?ages?(?:\s|-)of(?:\s|-)?embryos?' +
+            r'|development(?:al)?(?:\s|-)time(?:\s|-)(?:series|courses?)' +
+        r')\b', '__mouse_age', context=context),
+    TextMapping('fetus',   # fetus terms
+        r'\b(?:' +
+            r'fetus|fetuses' +
+            r'|(?:fetal|foetal)(?!\s+(?:bovine|calf)\s+serum)' +
+        r')\b', '__mouse_age', context=context),
+    TextMapping('misc',   # misc terms
+        r'\b(?:' +
+            r'genepaint' +
+            r'|embryo(?:\s|-)mouse(?:\s|-)brain' +
+        r')\b', '__mouse_age', context=context),
+    ]
+# end getAgeMappings() -----------------------------------
+
+class TextMappingFromAgeExcludeTerms (TextMappingFromStrings):
+    """
+    Is a: TextMapping for matching age exclusion terms
+    Does: converts ageExclude vocab terms (a list of strings) to regex's with
+            ' ' converted to r'\s' (any whitespace)
+            '_' converted to r'\b' (word boundary)
+            '#' converted to r'\d' (any digit)
+          This gives the curators to a way to make simple regex's from vocab
+          terms.
+    """
+
+    def _str2regex(self, s):
+        """ Return re.escape(s) string with
+            '_' replaced w/ word boundaries (r'\b')
+            ' ' replaced with r'\s' to match any whitespace
+            '#' replaced with r'\d' to match any digit
+        """
+        regex = re.escape(s)
+        regex = regex.replace(' ', 's')   # escape puts '\' before ' ' 
+        regex = regex.replace('#', 'd')   # escape puts '\' before '#' 
+        regex = regex.replace('_', r'\b') # escape does not put '\' before '_' 
+        return regex
+#-----------------------------------
+
 def findMatches(text, termDict, matchType, ctxLen):
     """ find all matches in text for terms in the termDict:
             {'term': 'replacement text for the term'}.
@@ -396,176 +605,3 @@ def findMatches(text, termDict, matchType, ctxLen):
 
     return resultText, matchRcds
 # end findMatches() -----------------------------------
-
-# Automated tests
-class FindMatchesTests(unittest.TestCase):
-    def test_findMatches(self):
-        termDict = {'the start': 'THE START', 'middle': 'MIDDLE',
-                    'the end': 'THE END'}
-        text     = 'the start. the middle.\nthe\nend'
-        expected = 'THE START. the MIDDLE. THE END'
-        newText, matches = findMatches(text, termDict, 'textMatches', 5)
-        self.assertEqual(newText, expected)
-
-        self.assertEqual(len(matches), 3)
-        m = matches[1]
-        self.assertEqual(m.postText, '.\nthe')
-
-class AgeExcludeTests(unittest.TestCase):
-    def setUp(self):
-        ageExclude = ['_hh##_', 'hamburger hamilton']
-        self.gr = GXDrouter([], [], [], ageExclude, [], [], numChars=30)
-
-    # Note the "fig n" text is needed to force the text to be included
-    #  as figure text in the routeThisRef() method.
-    # Any paragraph w/o fig or figure will be omitted when looking for ages.
-
-    def test_nullTest(self):
-        # need '\n\nfig n.' for this to be treated as figure text
-        doc = '\n\nfig 1. some text E14.5 more text'    # no age exclusion
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-    def test_regexChars1(self):
-        # test _hh##_ matches digits and word boundaries and causes exclusion
-        doc = '\n\nfig 1. (hh23) some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-        # test _hh##_ matches digits and word boundaries and causes exclusion
-        doc = '\n\nfig 1. some text E14.5 more text (hh46)' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-        # test _hh##_ matches word boundaries are required for exclusion
-        doc = '\n\nfig 1. (hh23not_word_boundary) some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-        # test ' ' in exclude term matches whitespace
-        doc = '\n\nfig 1. (hamburger\nhamilton) some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-    def test_hasAgeExcludeBlock(self):
-        # test no blocks
-        doc = 'fig 1.1 (hh23)\nfig 2 some text E14.5 more text' 
-        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
-
-        # test '\n\n' blocks
-        doc = 'fig 1.1 (hh23)\n\nfig 2 some text E14.5 more text' 
-        self.assertTrue(self.gr.hasAgeExcludeBlock(doc))
-
-        # test '; ' blocks
-        doc = 'fig 1.1 (hh23); fig 2 some text E14.5 more text' 
-        self.assertTrue(self.gr.hasAgeExcludeBlock(doc))
-
-        # test '. ' blocks
-        doc = 'fig 1.1 (hh23). fig 2 some text E14.5 more text' 
-        self.assertTrue(self.gr.hasAgeExcludeBlock(doc))
-
-        # test ' fig. ' does not block
-        doc = 'fig 1.1 (hh23) fig. 2 some text E14.5 more text' 
-        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
-
-        # test ' fig.\n' does not block
-        doc = 'fig 1.1 (hh23) fig.\n 2 some text E14.5 more text' 
-        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
-
-        # test '(fig. ' does not block
-        doc = 'fig 1.1 (hh23) (fig. 2) some text E14.5 more text' 
-        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
-
-        # test 'config. ' does block
-        doc = 'fig 1.1 (hh23) config. 2 some text E14.5 more text' 
-        self.assertTrue(self.gr.hasAgeExcludeBlock(doc))
-
-        # test 'et al. ' does not block
-        doc = 'fig 1.1 (hh23) et al. some text E14.5 more text' 
-        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
-
-        # test 'et al.\n' does not block
-        doc = 'fig 1.1 (hh23) et al.\nsome text E14.5 more text' 
-        self.assertFalse(self.gr.hasAgeExcludeBlock(doc))
-
-    def test_excludeBlocking(self):
-        # test '\n\n' between exclude term & age text blocks the exclusion
-        doc = '\n\nfig 1. (hh23)\n\nfig 2 some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-        # test '\n\n' between exclude term & age text blocks the exclusion
-        doc = '\n\nfig 1. some text E14.5 more text\n\n fig 2 (hh23)' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-        # test '.\n' between exclude term & age text blocks the exclusion
-        doc = '\n\nfig 1. (hh23).\n some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-        # test '. ' between exclude term & age text blocks the exclusion
-        doc = '\n\nfig 1. some text E14.5 more text. new sentence hh46.' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-        # test ' fig. ' between exclude term & age text not block the exclusion
-        doc = '\n\nfig 1. (hh23) fig. 54, some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-        # test '(fig. ' between exclude term & age text not block the exclusion
-        doc = '\n\nfig 1. (hh23) (fig. 54), some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-        # test 'fig.\n' between exclude term & age text not block the exclusion
-        doc = '\n\nfig 1. some text E14.5 more text fig.\n54 hh33' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-        # test 'et al.' between exclude term & age text not block the exclusion
-        doc = '\n\nfig 1. some text E14.5 more text et al. 54 hh33' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'excludeAge')
-
-        # test ';' between exclude term & age text blocks the exclusion
-        doc = '\n\nfig 1. (hh23); some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
-        matches = self.gr.getAllMatches()
-        self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0].matchType, 'eday')
-
-        #m = matches[0]
-        #print()
-        #print("%s: '%s' '%s' '%s'" % (m.matchType, m.preText, m.matchText, m.postText))
-#-----------------------------------
-
-if __name__ == "__main__":
-    unittest.main()

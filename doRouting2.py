@@ -25,7 +25,6 @@ import time
 import argparse
 import unittest
 import figureText
-import GXD2aryAge
 from  GXD2aryRouter import GXDrouter
 import GXD2aryRefSample as SampleLib
 from sklearnHelperLib import predictionType
