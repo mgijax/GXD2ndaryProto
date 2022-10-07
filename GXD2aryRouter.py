@@ -257,21 +257,25 @@ class GXDrouter (object):
         """ Return text that summarizes this routing algorithm
         """
         output = ''
-        output += 'Category1 terms in full text:\n'
+        output += 'Category1 terms in full text (%d terms):\n' % \
+                                                    len(self.cat1TermsDict)
         for t in sorted(self.cat1TermsDict.keys()):
             output += "\t'%s'\n" % t
 
-        output += 'Category1 Exclude terms:\n'
+        output += 'Category1 Exclude terms (%d terms):\n' % \
+                                                    len(self.cat1ExcludeDict)
         for t in sorted(self.cat1ExcludeDict.keys()):
             output += "\t'%s'\n" % t
 
         output += 'Number of figure text words: %d\n' % self.numFigTextWords
 
-        output += 'Category2 terms in figure text:\n'
+        output += 'Category2 terms in figure text (%d terms):\n' % \
+                                                    len(self.cat2TermsDict)
         for t in sorted(self.cat2TermsDict.keys()):
             output += "\t'%s'\n" % t
 
-        output += 'Category2 Exclude terms:\n'
+        output += 'Category2 Exclude terms (%d terms):\n' % \
+                                                    len(self.cat2ExcludeDict)
         for t in sorted(self.cat2ExcludeDict.keys()):
             output += "\t'%s'\n" % t
 
@@ -280,7 +284,7 @@ class GXDrouter (object):
 
         output += 'Num chars around age matches to look for age excludes: %d\n'\
                                                     % self.ageContext
-        output += 'Mouse Age Exclude terms:\n'
+        output += 'Mouse Age Exclude terms (%d terms):\n' % len(self.ageExclude)
         for t in sorted(self.ageExclude):
             output += "\t'%s'\n" % t
 
@@ -292,7 +296,8 @@ class GXDrouter (object):
         output += 'Mouse age exclude blocking logic for ". ":\n'
         output += '". " not following "fig" nor "et al"\n'
 
-        output += 'Route=No for these journals:\n'
+        output += 'Route=No for these journals (%d journals):\n' % \
+                                                    len(self.skipJournals)
         for t in sorted(self.skipJournals):
             output += "\t'%s'\n" % t
 
