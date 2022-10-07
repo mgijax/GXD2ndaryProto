@@ -40,7 +40,6 @@ import sys
 import re
 import unittest
 import figureText
-import GXD2aryAge
 from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransformer, spacedOutRegex
 #-----------------------------------
 
@@ -116,8 +115,7 @@ class GXDrouter (object):
         return len(self.cat2Matches)
 
     def _buildMouseAgeDetection(self):
-        self.ageTextTransformer = GXD2aryAge.AgeTextTransformer( \
-                                                    context=self.ageContext)
+        self.ageTextTransformer = AgeTextTransformer(context=self.ageContext)
 
         self.ageExcludeTextMapping = TextMappingFromAgeExcludeTerms( \
                 'excludeAge', self.ageExclude, lambda x: x.upper(), context=0)
