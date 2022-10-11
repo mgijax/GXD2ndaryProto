@@ -6,7 +6,8 @@
            To instantiate this class, you need vocabularies (lists of strings)
             for the vocabs listed below.
 
-  To Test:  python test_GXD2aryRouter.py -v
+  To Run Automated Unit Tests:  python test_GXD2aryRouter.py [-v]
+  (for low level routines and age matches)
   
   To Use:
     import GXD2aryRouter
@@ -21,7 +22,7 @@
                 cat2Terms,      # [category 2 terms]
                 cat2Exclude,    # [category 2 exclude terms]
                 )
-    ### to route a reference
+    ### to route a reference, text = extracted text w/o the references section
     routing =  router.routeThisRef(refID, text, journal)
     if routing == 'Yes':
         # route it to GXD...
@@ -38,9 +39,12 @@
 '''
 import sys
 import re
-import unittest
 import figureText
 from utilsLib import MatchRcd, TextMapping, TextMappingFromStrings, TextTransformer, spacedOutRegex
+
+PARABOUNDARY = '\n\n'        # signifies paragraph boundaries in extracted text
+PARABOUNDARY_REGEX = r'\n\n' # regex chars for paragraph boundaries
+
 #-----------------------------------
 
 class GXDrouter (object):
@@ -48,13 +52,15 @@ class GXDrouter (object):
     Is a: object that knows how to route references for GXD 2ary triage
     Has : vocabularies (lists of strings)
             see __init__() below
-    Does: route a reference (return 'Yes' or 'No') given the reference text
-            and its journal name.
-    jak: need more info here
+          list of utilsLib.MatchRcd's for the most recent call to routeThisRef()
+    Does: routeThisRef() routes a reference (return 'Yes' or 'No') given the
+            reference text and its journal name.
+          get MatchRcd's
+          get algorithm/vocab summary text
     """
-
     def __init__(self,
                 skipJournals,   # [journal names] whose articles don't route
+                                #    case sensitive
                 cat1Terms,      # [category 1 terms]
                 cat1Exclude,    # [category 1 exclude terms]
                 ageExclude,     # [age exclude terms]
@@ -63,7 +69,7 @@ class GXDrouter (object):
                 numChars=30,    # n chars on each side of cat1/2 match to report
                 ageContext=210, # n chars around age matches to keep & search
                 ):
-        self.numChars = numChars  # num of chars of surrounding context to keep
+        self.numChars = numChars
         self.skipJournals = {j for j in skipJournals} # set of journal names
         self.cat1Terms    = cat1Terms
         self.cat1Exclude  = cat1Exclude
@@ -72,7 +78,11 @@ class GXDrouter (object):
         self.cat2Terms    = cat2Terms
         self.cat2Exclude  = cat2Exclude
 
-        self.numFigTextWords = 75
+        # figure text extraction: keep figure legends and words around 
+        #  "figure/table" in other paragraphs.
+        # figure legends are paragraphs that start with "fig", "figure", "table"
+        self.numFigTextWords = 75       # n words around "figure/table" in
+                                        #   paragraphs to keep as figure text
         self.figTextConverter = figureText.Text2FigConverter( \
                                             conversionType='legCloseWords',
                                             numWords=self.numFigTextWords)
@@ -82,8 +92,9 @@ class GXDrouter (object):
         return
 
     def _buildCat1Detection(self):
-        # Set up for using text comparisons
-        # mapping of lower case exclude terms to what to replace them with
+        """Each vocab is represented as a dict mapping lower case terms to
+           their upper case.
+        """
         self.cat1TermsDict   = {x.lower() : x.upper() for x in self.cat1Terms}
         self.cat1ExcludeDict = {x.lower() : x.upper() for x in self.cat1Exclude}
         return
@@ -91,7 +102,6 @@ class GXDrouter (object):
     def _gotCat1(self, text):
         """ Return True if text contains a cat1 term not in an exclude context.
         """
-        # use text comparisons
         newText, self.cat1Excludes = findMatches(text,
                             self.cat1ExcludeDict, 'excludeCat1', self.numChars)
         newText, self.cat1Matches = findMatches(newText,
@@ -99,8 +109,9 @@ class GXDrouter (object):
         return len(self.cat1Matches)
 
     def _buildCat2Detection(self):
-        # Set up for using text comparisons
-        # mapping of lower case exclude terms to what to replace them with
+        """Each vocab is represented as a dict mapping lower case terms to
+           their upper case.
+        """
         self.cat2TermsDict   = {x.lower() : x.upper() for x in self.cat2Terms}
         self.cat2ExcludeDict = {x.lower() : x.upper() for x in self.cat2Exclude}
         return
@@ -115,8 +126,11 @@ class GXDrouter (object):
         return len(self.cat2Matches)
 
     def _buildMouseAgeDetection(self):
+        # ageTextTransformer matches age regex's against text
         self.ageTextTransformer = AgeTextTransformer(context=self.ageContext)
 
+        # ageExcludeTextTransformer matches age Exclude terms in the text
+        #   around age matches.
         self.ageExcludeTextMapping = TextMappingFromAgeExcludeTerms( \
                 'excludeAge', self.ageExclude, lambda x: x.upper(), context=0)
 
@@ -131,7 +145,7 @@ class GXDrouter (object):
             #         R has to have a fixed width. So I'm matching 4 chars:
             #         \Wfig = any nonalphnumeric + 'fig'
             #         or 't al'
-        regex = r'\n\n|[;]\s|(?<!\Wfig|t al)[.]\s'
+        regex = PARABOUNDARY_REGEX + r'|[;]\s|(?<!\Wfig|t al)[.]\s'
         self.ageExcludeBlockRE = re.compile(regex)  # ; or . or para
 
     def _gotMouseAge(self, text):
@@ -154,7 +168,7 @@ class GXDrouter (object):
 
     def _isGoodAgeMatch(self, m # MatchRcd
                         ):
-        """ Return True if this looks like a good mouse age match.
+        """ Return True if m looks like a good mouse age MatchRcd.
             (i.e., no age exclusion terms found in the match or pre/post text)
             If not a good mouse age, return False and:
                 Modify m.matchText, m.preText, or m.postText to highlight the
@@ -210,6 +224,7 @@ class GXDrouter (object):
     def hasAgeExcludeBlock(self, text):
         """ Return True/False if text contains ageExclude blocking text
         """
+        # this is simpler now that everything is done in the regex
         if self.ageExcludeBlockRE.search(text):
             return True
         else:
@@ -217,7 +232,7 @@ class GXDrouter (object):
 
     def routeThisRef(self, refID, text, journal):
         """ Given info about a reference, return "Yes" or "No"
-            Assumes the text of each reference is full text.
+            text is full extracted text, typically w/o references section
             Assumes the text is all lower case.
             Checks journal.
             Searches the full text for cat1 terms.
@@ -244,7 +259,7 @@ class GXDrouter (object):
 
         gotCat1     = self._gotCat1(text)
 
-        figText = '\n\n'.join(self.figTextConverter.text2FigText(text))
+        figText = PARABOUNDARY.join(self.figTextConverter.text2FigText(text))
         gotMouseAge = self._gotMouseAge(figText)
         gotCat2     = self._gotCat2(figText)
 
@@ -254,7 +269,7 @@ class GXDrouter (object):
             return 'No'
 
     def getExplanation(self):
-        """ Return text that summarizes this routing algorithm
+        """ Return text that summarizes this routing algorithm and vocabs
         """
         output = ''
         output += 'Category1 terms in full text (%d terms):\n' % \
@@ -339,8 +354,9 @@ class AgeTextTransformer (TextTransformer):
       reportStr = ageTransformer.getReport()  # to get formatted match report
     """
     def __init__(self, context=210, fixContext=10):
-        self.context    = context
-        self.fixContext = fixContext
+        self.context    = context       # n chars around age matches to keep
+        self.fixContext = fixContext    # n chars around "fixes" to keep
+                                        #   see "fix" age mappings below.
         ageMappings     = getAgeMappings(context=context, fixContext=fixContext)
 
         super().__init__(ageMappings, reFlags=re.IGNORECASE)
@@ -355,7 +371,7 @@ def getAgeMappings(context=210, fixContext=10):
         fixContext is the num of characters to keep for mappings that just
             fix weird text problems
 
-        These mappings are a little different from the age mappings
+        These age mappings are a little different from the age mappings
         defined for the autolittriage relevanceClassifier and gxdhtclassifier
         since they are only matched against figure text and have been tuned by
         lots of trial and error for GXD 2ndary triage.
