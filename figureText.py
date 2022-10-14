@@ -19,6 +19,7 @@ To run automated tests:   python test_figureText.py [-v]
 """
 
 import re
+from utilsLib import spacedOutRegex
 
 class Text2FigConverter (object):
     """
@@ -62,16 +63,6 @@ class Text2FigConverter (object):
 # Nomenclature:
 # 'regex' = the text of a regular expression (as a string)
 # 're'    = a regular expression object from the re module
-
-def spacedOutRegex(s):
-    # for given str, return regex pattern str that matches the chars
-    #  in the str with optional spaces between the chars.
-    # Useful because sometimes the PDF text extraction inserts spaces
-    #  if it is in all caps or bold or a larger font
-    reg = []
-    for c in s:
-        reg.append('[%s]' % c)
-    return '[ ]*'.join(reg)
 
 PARAGRAPH_BOUNDARY = '\n\n'	# defines a paragraph boundary
 PARAGRAPH_BOUNDARY_LEN = len(PARAGRAPH_BOUNDARY)
