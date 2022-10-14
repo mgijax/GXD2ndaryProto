@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-# Some helpful utilities
+# Some helpful MLtextTools utilities
+# to run automated tests:  python test_utilsLib.py [-v]
 """
 import sys
 import os.path
@@ -99,7 +100,7 @@ class TextMapping (object):
         OR be a function that takes the matching text (string) as an argument
             and returns the replacement string for that text.
     DOES: Computes replacement strings for a given matching text.
-          Keeps track of the strings that were matched & replaced (matchRcds)
+          Keeps track of the strings that were matched & replaced (MatchRcds)
             so you can get a report of what matched.
     """
     def __init__(self, name, regex, replacement, context=0):

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 '''
-  Purpose: Apply a potential GXD secondary triage routing algorithm & evaluate.
+  Purpose: Apply a potential GXD secondary triage routing algorithm to
+              a test set & evaluate.
 
-  Inputs:  (stdin) Sample file of GXD routed (classified) reference records.
+  Inputs:  (stdin) Sample file of GXD classified reference records.
             See refSample.py for the fields of these records.
 
             A bunch of vocab (text) files with fixed filenames.
@@ -72,7 +73,8 @@ args.routingsFilename  = "%sRoutings.txt" % args.baseName
 args.detailsFilename   = "%sDetails.txt"  % args.baseName
 args.summaryFilename   = "%sSummary.txt"  % args.baseName
 
-fileSplitModulus = 4    # split big files based on this modulus
+fileSplitModulus = 4    # split big files based on this modulus,
+                        #  see match output files below.
 
 # Formatting for the output reports
 routingFieldSep = '|'
@@ -194,6 +196,11 @@ def process():
     routingsFile.write(routingHdr)
 
     # open all the match output files
+    # The files are split by type of match (Cat1, Cat2, Age), and by predType
+    #  (TP, FP, TN, FN). TP's are split up into subfiles based on last two
+    #  digits of the reference ID)
+    # This is all because the match files get too big to import into Excel
+    #  and Google Sheets.
     matchesFile = {}   # matchesFile[(cat,predType)] = output file for matches
     for cat in ['Cat1', 'Cat2', 'Age']:
         for predType in ['FP', 'TN', 'FN']:
@@ -325,6 +332,13 @@ def process():
 #-----------------------------------
 
 def getMatchFileKey(cat, predType, refID):
+    """ Compute and return the key into the dict of Match output files
+        For predTypes FP, TN, FN, this is just (cat, predType)
+        For predType TP, the output files are split based on the modulus of
+            the last two digits of the reference ID
+            (because there are so many TP, the files get too big to import
+            into Excel or Google Sheets)
+    """
     if predType == 'TP':
         lastDig = int(refID[-2:])
         dig = lastDig % fileSplitModulus

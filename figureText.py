@@ -8,10 +8,12 @@ We treat tables as figures too.
 As we refer to "figure caption" or "figure text" or "fig", we mean "tables" and
 "table text" too.
 
-Example:
+Example Usage:
     converter = Text2FigConverter(conversionType='legCloseWords')
-    for b in converter.text2FigText(text)
+    for b in converter.text2FigText(text):
         print b  # a chunk of text that contains figure related text
+
+To run automated tests:   python test_figureText.py [-v]
 
 #######################################################################
 """

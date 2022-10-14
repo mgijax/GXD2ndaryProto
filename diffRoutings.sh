@@ -5,7 +5,9 @@ function Usage() {
 
 $0 [-s] [-TP|-FP|-TN|-FN] RoutingFile1 RoutingFile2
 
-Diff two routing files to report routing differences. Default: all differences.
+Diff two routing files to report routing differences. Removes match counts
+before diff, so only actual routing differences are reported.
+Default: report all differences.
    -s   short diff output:  < lines in the 1st file, > lines in the 2nd
    -TP  only report true positives in one file and not the other
    -FP  etc.
