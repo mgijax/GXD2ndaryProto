@@ -22,6 +22,23 @@ class FindMatchesTests(unittest.TestCase):
         self.assertEqual(m.postText, '.\nthe')
 #-----------------------------------
 
+class ShortTextTests(unittest.TestCase):
+    # Test that refs with short text get routed
+    def setUp(self):
+        ageExclude = ['_hh##_']
+        self.gr = GXDrouter([], [], [], ageExclude, [], [], minTextLen=10)
+
+    def test_shortText(self):
+        doc = 'long enough, but no matches'
+        routing = self.gr.routeThisRef(doc, 'journal')
+        self.assertEqual(routing, 'No')
+
+        doc = 'too short'
+        routing = self.gr.routeThisRef(doc, 'journal')
+        self.assertEqual(routing, 'Yes')
+
+#-----------------------------------
+
 class AgeExcludeTests(unittest.TestCase):
     # Test the age exclude logic
     def setUp(self):
@@ -35,7 +52,7 @@ class AgeExcludeTests(unittest.TestCase):
     def test_AgeExcludeNullTest(self):
         # need '\n\nfig n.' for this to be treated as figure text
         doc = '\n\nfig 1. some text E14.5 more text'    # no age exclusion
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
@@ -43,28 +60,28 @@ class AgeExcludeTests(unittest.TestCase):
     def test_regexChars1(self):
         # test _hh##_ matches digits and word boundaries and causes exclusion
         doc = '\n\nfig 1. (hh23) some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
         # test _hh##_ matches digits and word boundaries and causes exclusion
         doc = '\n\nfig 1. some text E14.5 more text (hh46)' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
         # test _hh##_ matches word boundaries are required for exclusion
         doc = '\n\nfig 1. (hh23not_word_boundary) some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
 
         # test ' ' in exclude term matches whitespace
         doc = '\n\nfig 1. (hamburger\nhamilton) some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
@@ -113,63 +130,63 @@ class AgeExcludeTests(unittest.TestCase):
     def test_excludeBlocking(self):
         # test '\n\n' between exclude term & age text blocks the exclusion
         doc = '\n\nfig 1. (hh23)\n\nfig 2 some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
 
         # test '\n\n' between exclude term & age text blocks the exclusion
         doc = '\n\nfig 1. some text E14.5 more text\n\n fig 2 (hh23)' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
 
         # test '.\n' between exclude term & age text blocks the exclusion
         doc = '\n\nfig 1. (hh23).\n some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
 
         # test '. ' between exclude term & age text blocks the exclusion
         doc = '\n\nfig 1. some text E14.5 more text. new sentence hh46.' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')
 
         # test ' fig. ' between exclude term & age text not block the exclusion
         doc = '\n\nfig 1. (hh23) fig. 54, some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
         # test '(fig. ' between exclude term & age text not block the exclusion
         doc = '\n\nfig 1. (hh23) (fig. 54), some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
         # test 'fig.\n' between exclude term & age text not block the exclusion
         doc = '\n\nfig 1. some text E14.5 more text fig.\n54 hh33' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
         # test 'et al.' between exclude term & age text not block the exclusion
         doc = '\n\nfig 1. some text E14.5 more text et al. 54 hh33' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'excludeAge')
 
         # test ';' between exclude term & age text blocks the exclusion
         doc = '\n\nfig 1. (hh23); some text E14.5 more text' 
-        routing = self.gr.routeThisRef('id1', doc, 'journal')
+        routing = self.gr.routeThisRef(doc, 'journal')
         matches = self.gr.getAllMatches()
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].matchType, 'eday')

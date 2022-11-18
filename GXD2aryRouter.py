@@ -23,7 +23,7 @@
                 cat2Exclude,    # [category 2 exclude terms]
                 )
     ### to route a reference, text = extracted text w/o the references section
-    routing =  router.routeThisRef(refID, text, journal)
+    routing =  router.routeThisRef(text, journal)
     if routing == 'Yes':
         # route it to GXD...
 
@@ -68,6 +68,7 @@ class GXDrouter (object):
                 cat2Exclude,    # [category 2 exclude terms]
                 numChars=30,    # n chars on each side of cat1/2 match to report
                 ageContext=210, # n chars around age matches to keep & search
+                minTextLen=500, # if extracted text len is < this, route it
                 ):
         self.numChars = numChars
         self.skipJournals = {j for j in skipJournals} # set of journal names
@@ -77,6 +78,7 @@ class GXDrouter (object):
         self.ageContext   = ageContext
         self.cat2Terms    = cat2Terms
         self.cat2Exclude  = cat2Exclude
+        self.minTextLen   = minTextLen
 
         # figure text extraction: keep figure legends and words around 
         #  "figure/table" in other paragraphs.
@@ -230,7 +232,7 @@ class GXDrouter (object):
         else:
             return False
 
-    def routeThisRef(self, refID, text, journal):
+    def routeThisRef(self, text, journal):
         """ Given info about a reference, return "Yes" or "No"
             text is full extracted text, typically w/o references section
             Assumes the text is all lower case.
@@ -257,13 +259,15 @@ class GXDrouter (object):
         else:
             self.goodJournal = 1
 
-        gotCat1     = self._gotCat1(text)
+        textLen = len(text)
+        gotCat1 = self._gotCat1(text)
 
         figText = PARABOUNDARY.join(self.figTextConverter.text2FigText(text))
         gotMouseAge = self._gotMouseAge(figText)
         gotCat2     = self._gotCat2(figText)
 
-        if gotCat1 and gotMouseAge and gotCat2 and self.goodJournal:
+        if (gotCat1 and gotMouseAge and gotCat2 and self.goodJournal) \
+            or textLen < self.minTextLen:
             return 'Yes'
         else:
             return 'No'
@@ -272,6 +276,8 @@ class GXDrouter (object):
         """ Return text that summarizes this routing algorithm and vocabs
         """
         output = ''
+        output += 'Route refs whose extracted text is < %d chars\n' %  \
+                                                    self.minTextLen
         output += 'Category1 terms in full text (%d terms):\n' % \
                                                     len(self.cat1TermsDict)
         for t in sorted(self.cat1TermsDict.keys()):

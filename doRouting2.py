@@ -89,11 +89,12 @@ routingHdr = routingFieldSep.join(['ID',
                     'Age Excludes',
                     'Cat2 matches',
                     'Cat2 Excludes',
+                    'TextLength',
                     ] + sampleObjType.getExtraInfoFieldNames()) + '\n'
 
 def formatRouting(r, routing, predType, goodJournal, numCat1Matches,
                     numCat1Excludes, numAgeMatches, numAgeExcludes,
-                    numCat2Matches, numCat2Excludes):
+                    numCat2Matches, numCat2Excludes, textLen):
     t = routingFieldSep.join([r.getID(),
                     r.getKnownClassName(),
                     routing,
@@ -105,6 +106,7 @@ def formatRouting(r, routing, predType, goodJournal, numCat1Matches,
                     str(numAgeExcludes),
                     str(numCat2Matches),
                     str(numCat2Excludes),
+                    str(textLen),
                     ] + r.getExtraInfo()) + '\n'
     return t
 
@@ -231,8 +233,10 @@ def process():
     for i, ref in enumerate(samples):
         refID = ref.getID()
         conf = ref.getField('confidence')
-        routing = gxdRouter.routeThisRef(refID, ref.getDocument(),
-                                                    ref.getField('journal'))
+        text = ref.getDocument()
+        textLen = len(text)
+
+        routing = gxdRouter.routeThisRef(text, ref.getField('journal'))
         numCat1Matches  = len(gxdRouter.getCat1Matches())
         numCat1Excludes = len(gxdRouter.getCat1Excludes())
 
@@ -260,7 +264,8 @@ def process():
         r = formatRouting(ref, routing, predType, goodJournal, 
                                             numCat1Matches, numCat1Excludes,
                                             numAgeMatches,  numAgeExcludes,
-                                            numCat2Matches, numCat2Excludes)
+                                            numCat2Matches, numCat2Excludes,
+                                            textLen)
         routingsFile.write(r)
 
         # Cat1 match report
