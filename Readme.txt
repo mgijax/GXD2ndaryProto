@@ -2,8 +2,13 @@ Analysis and prototyping GXD secondary Triage - what files are where
 
 See https://mgi-jira.atlassian.net/browse/WTS2-848
 
+The test datasets are stored in WTS2-848/TestDataSets.
+See http://bhmgiwk01lp.jax.org/mediawiki/index.php/sw:GXD2ndaryProto#Test_Sets
+
 All the spreadsheets w/ data & analysis are in this google drive folder:
 https://drive.google.com/drive/folders/1CriRWMvOUKvfXjw7xlp0M345GDvd7V2G
+
+AND are stored in WTS2-848/AnalysisSpreadsheets
 
 Initial analysis of the GXD secondary loader w/ refs & routings pulled from the
 db with SQL (the SQL is in the TR) is here:
